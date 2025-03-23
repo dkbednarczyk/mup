@@ -34,10 +34,11 @@ pub fn fetch(minecraft_version: &str) -> Result<()> {
 
     info!("fetching latest installer version for minecraft {minecraft_version}");
 
-    let installer: Installer = ureq::get(&API_URL)
-        .set("User-Agent", mup::FAKE_USER_AGENT)
+    let installer: Installer = ureq::get(API_URL)
+        .header("User-Agent", mup::FAKE_USER_AGENT)
         .call()?
-        .into_json()?;
+        .body_mut()
+        .read_json()?;
 
     let installer_url = format!(
         "{DOWNLOAD_URL}/{}/neoforge-{}-installer.jar",
@@ -46,14 +47,16 @@ pub fn fetch(minecraft_version: &str) -> Result<()> {
 
     info!("downloading installer jarfile");
 
-    let resp = ureq::get(&installer_url)
-        .set("User-Agent", mup::FAKE_USER_AGENT)
+    let mut resp = ureq::get(&installer_url)
+        .header("User-Agent", mup::FAKE_USER_AGENT)
         .call()?;
+
+    let mut body = resp.body_mut().as_reader();
 
     let filename = format!("neoforge-{minecraft_version}-{}.jar", installer.version);
 
     let mut file = File::create(filename)?;
-    io::copy(&mut resp.into_reader(), &mut file)?;
+    io::copy(&mut body, &mut file)?;
 
     warn!("this is an installer, not a server loader! please run it and install the server before proceeding.");
 

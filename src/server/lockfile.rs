@@ -72,7 +72,7 @@ impl Lockfile {
 
         File::create(LOCKFILE_PATH)?;
 
-        let mut lf = Self {
+        let lf = Self {
             loader: l,
             plugins: vec![],
         };
@@ -137,7 +137,7 @@ impl Lockfile {
                 .ok_or_else(|| anyhow!("{slug} does not exist in the lockfile"))?;
 
             if !keep_jarfile {
-                fs::remove_file(&self.plugins[idx].get_file_path(&self.loader.name))?;
+                fs::remove_file(self.plugins[idx].get_file_path(&self.loader.name))?;
             }
 
             self.plugins.remove(idx);
@@ -148,7 +148,7 @@ impl Lockfile {
         Ok(())
     }
 
-    pub fn is_initialized(&mut self) -> bool {
+    pub fn is_initialized(&self) -> bool {
         let minecraft_version = &self.loader.minecraft_version;
 
         let version = Versioning::new(minecraft_version).unwrap();
@@ -156,7 +156,7 @@ impl Lockfile {
         !version.is_complex() && loader::parse(&self.loader.name).is_ok()
     }
 
-    pub fn save(&mut self) -> Result<()> {
+    pub fn save(&self) -> Result<()> {
         info!("saving transaction to lockfile");
 
         let mut output = fs::OpenOptions::new()

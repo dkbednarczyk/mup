@@ -63,9 +63,10 @@ fn get_latest_version() -> Result<String, anyhow::Error> {
     info!("fetching latest Minecraft version");
 
     let body: Versions = ureq::get(BASE_URL)
-        .set("User-Agent", mup::FAKE_USER_AGENT)
+        .header("User-Agent", mup::FAKE_USER_AGENT)
         .call()?
-        .into_json()?;
+        .body_mut()
+        .read_json()?;
 
     let latest = body
         .versions
@@ -82,10 +83,10 @@ fn get_build(minecraft_version: &str, build: &str) -> Result<Build> {
     info!("fetching build {build} for {minecraft_version}");
 
     let body: Builds = ureq::get(formatted_url.as_str())
-        .set("User-Agent", mup::FAKE_USER_AGENT)
+        .header("User-Agent", mup::FAKE_USER_AGENT)
         .call()?
-        .into_json()?;
-
+        .body_mut()
+        .read_json()?;
     if build == "latest" {
         return Ok(body.builds.first().unwrap().clone());
     }

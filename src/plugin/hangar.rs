@@ -50,9 +50,10 @@ pub fn fetch(lockfile: &Lockfile, project_id: &str, version: &str) -> Result<sup
     let formatted_url = format!("{BASE_URL}/projects/{project_id}");
 
     let project_info: ProjectInfo = ureq::get(&formatted_url)
-        .set("User-Agent", FAKE_USER_AGENT)
+        .header("User-Agent", FAKE_USER_AGENT)
         .call()?
-        .into_json()?;
+        .body_mut()
+        .read_json()?;
 
     let project_id = project_info.name;
 
@@ -62,10 +63,11 @@ pub fn fetch(lockfile: &Lockfile, project_id: &str, version: &str) -> Result<sup
         let formatted_url = format!("{BASE_URL}/projects/{project_id}/latest");
 
         ureq::get(&formatted_url)
-            .set("User-Agent", FAKE_USER_AGENT)
+            .header("User-Agent", FAKE_USER_AGENT)
             .query("channel", "Release")
             .call()?
-            .into_string()?
+            .body_mut()
+            .read_to_string()?
     } else {
         version.into()
     };
@@ -75,9 +77,10 @@ pub fn fetch(lockfile: &Lockfile, project_id: &str, version: &str) -> Result<sup
     let formatted_url = format!("{BASE_URL}/projects/{project_id}/versions/{version}");
 
     let version_info: VersionInfo = ureq::get(&formatted_url)
-        .set("User-Agent", FAKE_USER_AGENT)
+        .header("User-Agent", FAKE_USER_AGENT)
         .call()?
-        .into_json()?;
+        .body_mut()
+        .read_json()?;
 
     let loader = lockfile.loader.name.to_uppercase();
 
@@ -91,7 +94,7 @@ pub fn fetch(lockfile: &Lockfile, project_id: &str, version: &str) -> Result<sup
     let is_compatible = version_info.platform_dependencies[&loader]
         .iter()
         // Why this doesn't work without the closure I will never know.
-        .filter_map(|v| Versioning::new(v))
+        .filter_map(Versioning::new)
         .any(|v| v == minecraft_version);
 
     if !is_compatible {

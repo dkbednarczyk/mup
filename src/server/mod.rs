@@ -41,7 +41,7 @@ pub fn action(server: &Server) -> Result<()> {
 }
 
 fn init(minecraft_version: &str, loader: &str) -> Result<()> {
-    let mut lf = Lockfile::with_params(minecraft_version, loader)?;
+    let lf = Lockfile::with_params(minecraft_version, loader)?;
 
     if !lf.is_initialized() {
         return Err(anyhow!(
@@ -61,7 +61,7 @@ fn init(minecraft_version: &str, loader: &str) -> Result<()> {
 }
 
 fn install() -> Result<()> {
-    let mut lf = Lockfile::init()?;
+    let lf = Lockfile::init()?;
     if !lf.is_initialized() {
         return Err(anyhow!("failed to read lockfile"));
     }

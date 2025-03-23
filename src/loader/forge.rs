@@ -29,9 +29,10 @@ pub fn fetch(minecraft_version: &str, installer_version: &str) -> Result<()> {
     info!("fetching promos");
 
     let promos = ureq::get(PROMOS_URL)
-        .set("User-Agent", mup::FAKE_USER_AGENT)
+        .header("User-Agent", mup::FAKE_USER_AGENT)
         .call()?
-        .into_json::<PromosResponse>()?
+        .body_mut()
+        .read_json::<PromosResponse>()?
         .promos;
 
     let minecraft = if minecraft_version == "latest" {
@@ -59,14 +60,17 @@ pub fn fetch(minecraft_version: &str, installer_version: &str) -> Result<()> {
 
     info!("downloading installer jarfile");
 
-    let resp = ureq::get(&formatted_url)
-        .set("User-Agent", mup::FAKE_USER_AGENT)
+    let mut resp = ureq::get(&formatted_url)
+        .header("User-Agent", mup::FAKE_USER_AGENT)
         .call()?;
+
+    let mut body = resp.body_mut().as_reader();
 
     let filename = format!("forge-{minecraft}-{installer}.jar");
 
+
     let mut file = File::create(filename)?;
-    io::copy(&mut resp.into_reader(), &mut file)?;
+    io::copy(&mut body, &mut file)?;
 
     warn!("this is an installer, not a server loader! please run it and install the server before proceeding.");
 

@@ -174,12 +174,14 @@ pub fn download(source: &str, loader_name: &str, checksum: Option<&String>) -> R
     let source = source.split_once('#').unwrap().1;
 
     if checksum.is_none() {
-        let resp = ureq::get(source)
-            .set("User-Agent", mup::FAKE_USER_AGENT)
+        let mut resp = ureq::get(source)
+            .header("User-Agent", mup::FAKE_USER_AGENT)
             .call()?;
 
+        let mut body = resp.body_mut().as_reader();
+
         let mut file = File::create(&file_path)?;
-        io::copy(&mut resp.into_reader(), &mut file)?;
+        io::copy(&mut body, &mut file)?;
     }
 
     let (method, hash) = checksum.unwrap().split_once('#').unwrap();

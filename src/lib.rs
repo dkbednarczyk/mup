@@ -1,4 +1,4 @@
-use std::{fs::File, io::Write, path::Path};
+use std::{fs::File, io::{Read, Write}, path::Path};
 
 use anyhow::{anyhow, Result};
 use log::info;
@@ -14,9 +14,10 @@ pub fn download_with_checksum<T: sha2::Digest + Write>(
     info!("downloading jarfile from {url}");
 
     let mut resp = ureq::get(url)
-        .set("User-Agent", FAKE_USER_AGENT)
-        .call()?
-        .into_reader();
+        .header("User-Agent", FAKE_USER_AGENT)
+        .call()?;
+
+    let mut body = resp.body_mut().as_reader();
 
     if let Some(prefix) = path.parent() {
         std::fs::create_dir_all(prefix).unwrap();
@@ -29,7 +30,7 @@ pub fn download_with_checksum<T: sha2::Digest + Write>(
         let mut buf = [0; 1024];
 
         loop {
-            let count = resp.read(&mut buf)?;
+            let count = body.read(&mut buf)?;
             if count == 0 {
                 break;
             }

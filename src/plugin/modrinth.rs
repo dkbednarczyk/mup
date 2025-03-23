@@ -47,9 +47,10 @@ pub fn fetch(lockfile: &Lockfile, id: &str, version: &str) -> Result<super::Info
     info!("Fetching project info for {id}");
 
     let project_info: ProjectInfo = ureq::get(&formatted_url)
-        .set("User-Agent", FAKE_USER_AGENT)
+        .header("User-Agent", FAKE_USER_AGENT)
         .call()?
-        .into_json()?;
+        .body_mut()
+        .read_json()?;
 
     if project_info.server_side == "unsupported" {
         return Err(anyhow!("client side"));
@@ -137,9 +138,10 @@ fn get_specific_version(
     info!("fetching version {version} of {slug}");
 
     let resp: Version = ureq::get(&formatted_url)
-        .set("User-Agent", FAKE_USER_AGENT)
+        .header("User-Agent", FAKE_USER_AGENT)
         .call()?
-        .into_json()?;
+        .body_mut()
+        .read_json()?;
 
     if slug != resp.project_id {
         return Err(anyhow!(
@@ -167,7 +169,7 @@ fn get_latest_version(slug: &str, minecraft_version: &String, loader: &String) -
     let formatted_url = format!("{BASE_URL}/project/{slug}/version");
 
     let mut req = ureq::get(&formatted_url)
-        .set("User-Agent", FAKE_USER_AGENT)
+        .header("User-Agent", FAKE_USER_AGENT)
         .query(
             "game_versions",
             format!("[\"{minecraft_version}\"]").as_str(),
@@ -179,7 +181,7 @@ fn get_latest_version(slug: &str, minecraft_version: &String, loader: &String) -
 
     info!("fetching latest version of {slug}");
 
-    let resp: Vec<Version> = req.call()?.into_json()?;
+    let resp: Vec<Version> = req.call()?.body_mut().read_json()?;
 
     let version = resp
         .iter()
