@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, io, sync::LazyLock};
+use std::{collections::HashMap, path::Path, sync::LazyLock};
 
 use anyhow::{anyhow, Result};
 use log::{info, warn};
@@ -10,7 +10,12 @@ const PROMOS_URL: &str =
 const BASE_MAVEN_URL: &str = "https://maven.minecraftforge.net/net/minecraftforge/forge";
 
 // Forge does not provide installer jarfiles before Minecraft version 1.5.2
-static MINECRAFT_CUTOFF: LazyLock<Versioning> = LazyLock::new(|| Versioning::new("1.5.2").unwrap());
+static LOWER_MINECRAFT_CUTOFF: LazyLock<Versioning> =
+    LazyLock::new(|| Versioning::new("1.5.2").unwrap());
+
+// See https://neoforged.net/news/theproject/
+static UPPER_MINECRAFT_CUTOFF: LazyLock<Versioning> =
+    LazyLock::new(|| Versioning::new("1.20.1").unwrap());
 
 // The cutoff in 1.9 builds after which versions are formatted as 1.X-{installer}-1.X.0
 static INSTALLER_CUTOFF_TRIPLE: LazyLock<Versioning> =
@@ -28,12 +33,8 @@ struct PromosResponse {
 pub fn fetch(minecraft_version: &str, installer_version: &str) -> Result<()> {
     info!("fetching promos");
 
-    let promos = ureq::get(PROMOS_URL)
-        .header("User-Agent", mup::FAKE_USER_AGENT)
-        .call()?
-        .body_mut()
-        .read_json::<PromosResponse>()?
-        .promos;
+    let resp: PromosResponse = mup::get_json(PROMOS_URL)?;
+    let promos = resp.promos;
 
     let minecraft = if minecraft_version == "latest" {
         promos
@@ -54,34 +55,30 @@ pub fn fetch(minecraft_version: &str, installer_version: &str) -> Result<()> {
         installer_version
     };
 
-    let version_tag = get_version_tag(&minecraft, installer)?;
-
-    let formatted_url = format!("{BASE_MAVEN_URL}/{version_tag}/forge-{version_tag}-installer.jar");
-
     info!("downloading installer jarfile");
 
-    let mut resp = ureq::get(&formatted_url)
-        .header("User-Agent", mup::FAKE_USER_AGENT)
-        .call()?;
-
-    let mut body = resp.body_mut().as_reader();
-
+    let version_tag = get_version_tag(&minecraft, installer)?;
+    let formatted_url = format!("{BASE_MAVEN_URL}/{version_tag}/forge-{version_tag}-installer.jar");
     let filename = format!("forge-{minecraft}-{installer}.jar");
+    
+    mup::download(&formatted_url, Path::new(&filename))?;
 
-
-    let mut file = File::create(filename)?;
-    io::copy(&mut body, &mut file)?;
-
-    warn!("this is an installer, not a server loader! please run it and install the server before proceeding.");
+    warn!(
+        "forge servers must be installed manually, run the downloaded installer before proceeding"
+    );
 
     Ok(())
 }
 
 fn get_version_tag(minecraft: &Versioning, installer: &str) -> Result<String> {
-    if minecraft < &MINECRAFT_CUTOFF {
+    if minecraft < &LOWER_MINECRAFT_CUTOFF {
         return Err(anyhow!(
             "forge does not provide installer jarfiles before Minecraft 1.5.2"
         ));
+    }
+
+    if minecraft > &UPPER_MINECRAFT_CUTOFF {
+        return Err(anyhow!("use neoforge for minecraft versions after 1.20.1"));
     }
 
     // Lots of edge cases here

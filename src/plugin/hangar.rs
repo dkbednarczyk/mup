@@ -4,7 +4,6 @@ use crate::server::lockfile::Lockfile;
 
 use anyhow::{anyhow, Result};
 use log::info;
-use mup::FAKE_USER_AGENT;
 use serde::Deserialize;
 use versions::Versioning;
 
@@ -48,12 +47,7 @@ pub fn fetch(lockfile: &Lockfile, project_id: &str, version: &str) -> Result<sup
     info!("fetching info of project {project_id}");
 
     let formatted_url = format!("{BASE_URL}/projects/{project_id}");
-
-    let project_info: ProjectInfo = ureq::get(&formatted_url)
-        .header("User-Agent", FAKE_USER_AGENT)
-        .call()?
-        .body_mut()
-        .read_json()?;
+    let project_info: ProjectInfo = mup::get_json(&formatted_url)?;
 
     let project_id = project_info.name;
 
@@ -62,12 +56,7 @@ pub fn fetch(lockfile: &Lockfile, project_id: &str, version: &str) -> Result<sup
 
         let formatted_url = format!("{BASE_URL}/projects/{project_id}/latest");
 
-        ureq::get(&formatted_url)
-            .header("User-Agent", FAKE_USER_AGENT)
-            .query("channel", "Release")
-            .call()?
-            .body_mut()
-            .read_to_string()?
+        mup::get_string(&formatted_url)?
     } else {
         version.into()
     };
@@ -76,11 +65,7 @@ pub fn fetch(lockfile: &Lockfile, project_id: &str, version: &str) -> Result<sup
 
     let formatted_url = format!("{BASE_URL}/projects/{project_id}/versions/{version}");
 
-    let version_info: VersionInfo = ureq::get(&formatted_url)
-        .header("User-Agent", FAKE_USER_AGENT)
-        .call()?
-        .body_mut()
-        .read_json()?;
+    let version_info: VersionInfo = mup::get_json(&formatted_url)?;
 
     let loader = lockfile.loader.name.to_uppercase();
 

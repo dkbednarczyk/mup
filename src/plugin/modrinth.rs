@@ -42,15 +42,10 @@ pub struct ProjectInfo {
 }
 
 pub fn fetch(lockfile: &Lockfile, id: &str, version: &str) -> Result<super::Info> {
-    let formatted_url = format!("{BASE_URL}/project/{id}");
-
     info!("Fetching project info for {id}");
 
-    let project_info: ProjectInfo = ureq::get(&formatted_url)
-        .header("User-Agent", FAKE_USER_AGENT)
-        .call()?
-        .body_mut()
-        .read_json()?;
+    let formatted_url = format!("{BASE_URL}/project/{id}");
+    let project_info: ProjectInfo = mup::get_json(&formatted_url)?;
 
     if project_info.server_side == "unsupported" {
         return Err(anyhow!("client side"));
@@ -133,15 +128,10 @@ fn get_specific_version(
     minecraft_version: &String,
     loader: &String,
 ) -> Result<Version> {
-    let formatted_url = format!("{BASE_URL}/version/{version}");
-
     info!("fetching version {version} of {slug}");
 
-    let resp: Version = ureq::get(&formatted_url)
-        .header("User-Agent", FAKE_USER_AGENT)
-        .call()?
-        .body_mut()
-        .read_json()?;
+    let formatted_url = format!("{BASE_URL}/version/{version}");
+    let resp: Version = mup::get_json(&formatted_url)?;
 
     if slug != resp.project_id {
         return Err(anyhow!(

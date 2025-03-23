@@ -1,8 +1,6 @@
 # mup
 
-This is a spiritual successor to the original, now abandoned (?) [pap](https://github.com/talwat/pap), rewritten in Rust.
-
-The current MSRV is the latest nightly toolchain.
+This is a spiritual successor to the original, now abandoned(?) [pap](https://github.com/talwat/pap), rewritten in Rust.
 
 ## Goals
 

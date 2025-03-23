@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
 use log::info;
-use mup::download_with_checksum;
 use serde::Deserialize;
 use sha2::Sha256;
 
@@ -50,7 +49,7 @@ pub fn fetch(minecraft_version: &str, build: &str) -> Result<()> {
 
     let filename = format!("paper-{minecraft}-{}.jar", build.build);
 
-    download_with_checksum::<Sha256>(
+    mup::download_with_checksum::<Sha256>(
         &formatted_url,
         &PathBuf::from(filename),
         &build.downloads.application.sha256,
@@ -62,13 +61,9 @@ pub fn fetch(minecraft_version: &str, build: &str) -> Result<()> {
 fn get_latest_version() -> Result<String, anyhow::Error> {
     info!("fetching latest Minecraft version");
 
-    let body: Versions = ureq::get(BASE_URL)
-        .header("User-Agent", mup::FAKE_USER_AGENT)
-        .call()?
-        .body_mut()
-        .read_json()?;
+    let versions: Versions = mup::get_json(BASE_URL)?;
 
-    let latest = body
+    let latest = versions
         .versions
         .last()
         .ok_or_else(|| anyhow!("could not get latest minecraft version"))?
@@ -82,11 +77,7 @@ fn get_build(minecraft_version: &str, build: &str) -> Result<Build> {
 
     info!("fetching build {build} for {minecraft_version}");
 
-    let body: Builds = ureq::get(formatted_url.as_str())
-        .header("User-Agent", mup::FAKE_USER_AGENT)
-        .call()?
-        .body_mut()
-        .read_json()?;
+    let body: Builds = mup::get_json(&formatted_url)?;
     if build == "latest" {
         return Ok(body.builds.first().unwrap().clone());
     }
