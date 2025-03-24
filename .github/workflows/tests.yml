@@ -31,7 +31,7 @@ jobs:
           cargo run -- --verbose plugin add chunky -p hangar -v 1.3.92
 
           mkdir another-server && cd another-server
-          cp ../mup.lock .
+          cp ../mup.lock.json .
 
           cargo run -- --verbose server install
           cargo run -- --verbose plugin remove simple-voice-chat --remove-orphans
