@@ -58,7 +58,7 @@ pub fn fetch(minecraft_version: &str, build: &str) -> Result<()> {
     Ok(())
 }
 
-fn get_latest_version() -> Result<String, anyhow::Error> {
+fn get_latest_version() -> Result<String> {
     info!("fetching latest Minecraft version");
 
     let versions: Versions = mup::get_json(BASE_URL)?;
@@ -79,7 +79,8 @@ fn get_build(minecraft_version: &str, build: &str) -> Result<Build> {
 
     let body: Builds = mup::get_json(&formatted_url)?;
     if build == "latest" {
-        return Ok(body.builds.first().unwrap().clone());
+        let first = body.builds.first().ok_or_else(|| anyhow!("could not get latest loader version"))?;
+        return Ok(first.clone());
     }
 
     let build_id: usize = build.parse()?;

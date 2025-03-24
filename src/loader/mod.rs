@@ -6,8 +6,6 @@ mod forge;
 mod neoforge;
 mod paper;
 
-const VALID_LOADERS: [&str; 4] = ["paper", "fabric", "forge", "neoforge"];
-
 #[derive(Deserialize, Serialize)]
 pub struct Loader {
     pub name: String,
@@ -26,6 +24,8 @@ impl Default for Loader {
 }
 
 impl Loader {
+    const VALID_LOADERS: [&str; 4] = ["paper", "fabric", "forge", "neoforge"];
+
     pub fn new(loader: &str, minecraft_version: &str, version: &str) -> Self {
         Self {
             name: loader.to_string(),
@@ -52,8 +52,8 @@ impl Loader {
     }
 
     pub fn parse_name(input: &str) -> Result<String> {
-        if !VALID_LOADERS.contains(&input) {
-            return Err(anyhow!("try one of {VALID_LOADERS:?}"));
+        if !Self::VALID_LOADERS.contains(&input) {
+            return Err(anyhow!("try one of {:?}", Self::VALID_LOADERS));
         }
 
         Ok(input.to_string())

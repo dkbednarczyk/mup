@@ -12,8 +12,8 @@ struct Version {
 }
 
 pub fn fetch(minecraft_version: &str, loader_version: &str) -> Result<()> {
-    let game = get_version("/game", minecraft_version)?.version;
-    let loader = get_version("/loader", loader_version)?.version;
+    let game = get_version("game", minecraft_version)?.version;
+    let loader = get_version("loader", loader_version)?.version;
 
     info!("fetching latest installer");
 
@@ -34,11 +34,9 @@ pub fn fetch(minecraft_version: &str, loader_version: &str) -> Result<()> {
 }
 
 fn get_version(path: &str, version: &str) -> Result<Version> {
-    let stripped = path.strip_prefix('/').unwrap();
+    info!("fetching information for {path} version {version}");
 
-    info!("fetching information for {stripped} version {version}");
-
-    let formatted_url = format!("{BASE_URL}{path}");
+    let formatted_url = format!("{BASE_URL}/{path}");
     let versions: Vec<Version> = mup::get_json(&formatted_url)?;
 
     if version == "latest" {
@@ -51,6 +49,6 @@ fn get_version(path: &str, version: &str) -> Result<Version> {
     versions
         .iter()
         .find(|p| p.version == version)
-        .ok_or_else(|| anyhow!("{stripped} version {version} does not exist"))
+        .ok_or_else(|| anyhow!("{path} version {version} does not exist"))
         .cloned()
 }

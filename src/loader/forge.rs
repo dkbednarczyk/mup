@@ -33,8 +33,7 @@ struct PromosResponse {
 pub fn fetch(minecraft_version: &str, installer_version: &str) -> Result<()> {
     info!("fetching promos");
 
-    let resp: PromosResponse = mup::get_json(PROMOS_URL)?;
-    let promos = resp.promos;
+    let promos = mup::get_json::<PromosResponse>(PROMOS_URL)?.promos;
 
     let minecraft = if minecraft_version == "latest" {
         promos
@@ -44,7 +43,8 @@ pub fn fetch(minecraft_version: &str, installer_version: &str) -> Result<()> {
             .max()
             .unwrap()
     } else {
-        Versioning::new(minecraft_version).unwrap()
+        Versioning::new(minecraft_version)
+            .ok_or_else(|| anyhow!("invalid minecraft version {minecraft_version}"))?
     };
 
     let installer = if installer_version == "latest" {
@@ -63,9 +63,7 @@ pub fn fetch(minecraft_version: &str, installer_version: &str) -> Result<()> {
 
     mup::download(&formatted_url, Path::new(&filename))?;
 
-    warn!(
-        "forge servers must be installed manually, run the downloaded installer before proceeding"
-    );
+    warn!("forge servers must be installed manually using the downloaded jarfile");
 
     Ok(())
 }

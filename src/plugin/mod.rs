@@ -21,12 +21,12 @@ pub enum Plugin {
 
         /// Which provider to download dependencies from
         #[arg(short, long, default_value = "modrinth", value_parser = ["modrinth", "hangar"])]
-        provider: Option<String>,
+        provider: String,
 
         /// The version to target.
         /// For Modrinth plugins, this is the version ID.
         #[arg(short, long, default_value = "latest")]
-        version: Option<String>,
+        version: String,
 
         /// Also install optional dependencies
         #[arg(short, long, action)]
@@ -94,9 +94,6 @@ pub fn action(plugin: &Plugin) -> Result<()> {
             optional_deps,
             no_deps,
         } => {
-            let provider = provider.as_ref().unwrap();
-            let version = version.as_ref().unwrap();
-
             add(provider, id, version, *optional_deps, *no_deps)?;
         }
         Plugin::Remove {

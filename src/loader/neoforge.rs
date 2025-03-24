@@ -3,13 +3,13 @@ use std::{path::Path, sync::LazyLock};
 use anyhow::{anyhow, Result};
 use log::{info, warn};
 use serde::Deserialize;
-use versions::Versioning;
-
-static CUTOFF: LazyLock<Versioning> = LazyLock::new(|| Versioning::new("1.20.1").unwrap());
+use versions::SemVer;
 
 const API_URL: &str =
     "https://maven.neoforged.net/api/maven/latest/version/releases/net/neoforged/neoforge";
 const DOWNLOAD_URL: &str = "https://maven.neoforged.net/releases/net/neoforged/neoforge";
+
+static CUTOFF: LazyLock<SemVer> = LazyLock::new(|| SemVer::new("1.20.2").unwrap());
 
 #[derive(Deserialize)]
 struct Installer {
@@ -18,23 +18,24 @@ struct Installer {
 
 // see https://github.com/neoforged/websites/blob/main/assets/js/neoforge.js
 pub fn fetch(minecraft_version: &str) -> Result<()> {
-    if minecraft_version == "latest" {
-        return Err(anyhow!(
-            "for neoforge, you must specify a minecraft version to target"
-        ));
-    }
+    let mut endpoint = API_URL.to_string();
 
-    let parsed_version = Versioning::new(minecraft_version).unwrap();
+    if minecraft_version != "latest" {
+        let version = SemVer::new(minecraft_version)
+            .ok_or_else(|| anyhow!("invalid minecaft version {minecraft_version}"))?;
 
-    if parsed_version <= *CUTOFF {
-        return Err(anyhow!(
-            "neoforge is not recommended for Minecraft versions before 1.20.2"
-        ));
+        if version < *CUTOFF {
+            return Err(anyhow!("use forge for minecraft versions before 1.20.2"));
+        }
+
+        let double = format!("{}.{}", version.minor, version.patch);
+
+        endpoint += &format!("?filter={double}");
     }
 
     info!("fetching latest installer version for minecraft {minecraft_version}");
 
-    let installer: Installer = mup::get_json(API_URL)?;
+    let installer: Installer = mup::get_json(&endpoint)?;
 
     info!("downloading installer jarfile");
 
