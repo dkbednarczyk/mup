@@ -12,7 +12,7 @@ const VALID_LOADERS: [&str; 4] = ["paper", "fabric", "forge", "neoforge"];
 pub struct Loader {
     pub name: String,
     pub minecraft_version: String,
-    pub loader_version: String,
+    pub version: String,
 }
 
 impl Default for Loader {
@@ -20,7 +20,7 @@ impl Default for Loader {
         Self {
             name: String::from("none"),
             minecraft_version: String::from("latest"),
-            loader_version: String::from("latest"),
+            version: String::from("latest"),
         }
     }
 }
@@ -30,15 +30,15 @@ impl Loader {
         Self {
             name: loader.to_string(),
             minecraft_version: minecraft_version.to_string(),
-            loader_version: version.to_string(),
+            version: version.to_string(),
         }
-    } 
+    }
 
     pub fn fetch(&self) -> Result<()> {
         match self.name.as_str() {
-            "paper" => paper::fetch(&self.minecraft_version, &self.loader_version),
-            "fabric" => fabric::fetch(&self.minecraft_version, &self.loader_version),
-            "forge" => forge::fetch(&self.minecraft_version, &self.loader_version),
+            "paper" => paper::fetch(&self.minecraft_version, &self.version),
+            "fabric" => fabric::fetch(&self.minecraft_version, &self.version),
+            "forge" => forge::fetch(&self.minecraft_version, &self.version),
             "neoforge" => neoforge::fetch(&self.minecraft_version),
             _ => Ok(()),
         }
@@ -55,7 +55,7 @@ impl Loader {
         if !VALID_LOADERS.contains(&input) {
             return Err(anyhow!("try one of {VALID_LOADERS:?}"));
         }
-    
+
         Ok(input.to_string())
     }
 }

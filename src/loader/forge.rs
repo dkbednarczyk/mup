@@ -60,7 +60,7 @@ pub fn fetch(minecraft_version: &str, installer_version: &str) -> Result<()> {
     let version_tag = get_version_tag(&minecraft, installer)?;
     let formatted_url = format!("{BASE_MAVEN_URL}/{version_tag}/forge-{version_tag}-installer.jar");
     let filename = format!("forge-{minecraft}-{installer}.jar");
-    
+
     mup::download(&formatted_url, Path::new(&filename))?;
 
     warn!(

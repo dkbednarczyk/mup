@@ -52,22 +52,6 @@ pub enum Plugin {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-enum PluginSources {
-    Modrinth,
-    Hangar,
-}
-
-impl From<&str> for PluginSources {
-    fn from(s: &str) -> Self {
-        match s {
-            "modrinth" => Self::Modrinth,
-            "hangar" => Self::Hangar,
-            _ => unimplemented!(),
-        }
-    }
-}
-
-#[derive(Clone, Deserialize, Serialize)]
 pub struct Info {
     pub slug: String,
     pub id: String,
@@ -175,17 +159,18 @@ pub fn add(
 pub fn download_plugin(lockfile: &Lockfile, info: &Info) -> Result<()> {
     let file_path = info.get_file_path(&lockfile.loader);
 
-    if let Some(checksum) = &info.checksum {
-        let (method, hash) = checksum.split_once('#').unwrap();
+    info.checksum.as_ref().map_or_else(
+        || mup::download(&info.url, &file_path),
+        |checksum| {
+            let (method, hash) = checksum.split_once('#').unwrap();
 
-        match method {
-            "sha256" => mup::download_with_checksum::<Sha256>(&info.url, &file_path, hash),
-            "sha512" => mup::download_with_checksum::<Sha512>(&info.url, &file_path, hash),
-            _ => unimplemented!(),
-        }
-    } else {
-        mup::download(&info.url, &file_path)
-    }
+            match method {
+                "sha256" => mup::download_with_checksum::<Sha256>(&info.url, &file_path, hash),
+                "sha512" => mup::download_with_checksum::<Sha512>(&info.url, &file_path, hash),
+                _ => unimplemented!(),
+            }
+        },
+    )
 }
 
 fn remove(id: &str, keep_jarfile: bool, remove_orphans: bool) -> Result<()> {
