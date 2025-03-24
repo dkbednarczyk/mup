@@ -1,4 +1,4 @@
-use std::{fs::File, io, path::PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
 use clap::Subcommand;
@@ -6,7 +6,7 @@ use log::warn;
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Sha512};
 
-use crate::{loader, server::lockfile::Lockfile};
+use crate::{loader::Loader, server::lockfile::Lockfile};
 
 mod hangar;
 mod modrinth;
@@ -52,19 +52,38 @@ pub enum Plugin {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
+enum PluginSources {
+    Modrinth,
+    Hangar,
+}
+
+impl From<&str> for PluginSources {
+    fn from(s: &str) -> Self {
+        match s {
+            "modrinth" => Self::Modrinth,
+            "hangar" => Self::Hangar,
+            _ => unimplemented!(),
+        }
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Info {
     pub slug: String,
     pub id: String,
     pub version: String,
     pub dependencies: Vec<Dependency>,
     pub source: String,
+    pub url: String,
     pub checksum: Option<String>,
 }
 
 impl Info {
-    pub fn get_file_path(&self, l: &str) -> String {
-        let filename = self.source.rsplit_once('/').unwrap().1;
-        format!("{}/{}", loader::location(l), filename)
+    pub fn get_file_path(&self, loader: &Loader) -> PathBuf {
+        let filename = self.url.rsplit_once('/').unwrap().1;
+        let formatted = format!("{}/{}", loader.mod_location(), filename);
+
+        formatted.into()
     }
 }
 
@@ -150,9 +169,23 @@ pub fn add(
         add(provider, &dep.id, "latest", false, false)?;
     }
 
-    download(&info.source, &lockfile.loader.name, info.checksum.as_ref())?;
-
     lockfile.add(info)
+}
+
+pub fn download_plugin(lockfile: &Lockfile, info: &Info) -> Result<()> {
+    let file_path = info.get_file_path(&lockfile.loader);
+
+    if let Some(checksum) = &info.checksum {
+        let (method, hash) = checksum.split_once('#').unwrap();
+
+        match method {
+            "sha256" => mup::download_with_checksum::<Sha256>(&info.url, &file_path, hash),
+            "sha512" => mup::download_with_checksum::<Sha512>(&info.url, &file_path, hash),
+            _ => unimplemented!(),
+        }
+    } else {
+        mup::download(&info.url, &file_path)
+    }
 }
 
 fn remove(id: &str, keep_jarfile: bool, remove_orphans: bool) -> Result<()> {
@@ -165,30 +198,4 @@ fn remove(id: &str, keep_jarfile: bool, remove_orphans: bool) -> Result<()> {
     }
 
     lockfile.remove(id, keep_jarfile, remove_orphans)
-}
-
-pub fn download(source: &str, loader_name: &str, checksum: Option<&String>) -> Result<()> {
-    let filename = source.rsplit_once('/').unwrap().1;
-    let file_path = format!("{}/{}", loader::location(loader_name), filename);
-
-    let source = source.split_once('#').unwrap().1;
-
-    if checksum.is_none() {
-        let mut resp = ureq::get(source)
-            .header("User-Agent", mup::FAKE_USER_AGENT)
-            .call()?;
-
-        let mut body = resp.body_mut().as_reader();
-
-        let mut file = File::create(&file_path)?;
-        io::copy(&mut body, &mut file)?;
-    }
-
-    let (method, hash) = checksum.unwrap().split_once('#').unwrap();
-
-    match method {
-        "sha512" => mup::download_with_checksum::<Sha512>(source, &PathBuf::from(file_path), hash),
-        "sha256" => mup::download_with_checksum::<Sha256>(source, &PathBuf::from(file_path), hash),
-        _ => unimplemented!(),
-    }
 }

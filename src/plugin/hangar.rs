@@ -102,7 +102,8 @@ pub fn fetch(lockfile: &Lockfile, project_id: &str, version: &str) -> Result<sup
         slug: project_id.clone(),
         id: project_id,
         version,
-        source: format!("hangar#{}", version_info.downloads[&loader].url),
+        source: String::from("hangar"),
+        url: version_info.downloads[&loader].url.clone(),
         checksum: Some(format!(
             "sha256#{}",
             version_info.downloads[&loader].file_info.sha256

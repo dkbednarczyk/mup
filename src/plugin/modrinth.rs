@@ -107,7 +107,8 @@ pub fn fetch(lockfile: &Lockfile, id: &str, version: &str) -> Result<super::Info
         slug: project_info.slug,
         id: project_info.id,
         version: version_info.id,
-        source: format!("modrinth#{}", project_file.url),
+        source: String::from("modrinth"),
+        url: project_file.url.clone(),
         checksum: Some(format!("sha512#{}", project_file.hashes.sha512)),
         dependencies: version_info
             .dependencies

@@ -11,29 +11,12 @@ use versions::Versioning;
 
 use crate::{loader, plugin};
 
-const LOCKFILE_PATH: &str = "mup.lock";
+const LOCKFILE_PATH: &str = "mup.lock.json";
 
 #[derive(Deserialize, Default, Serialize)]
 pub struct Lockfile {
-    pub loader: Loader,
+    pub loader: loader::Loader,
     pub plugins: Vec<plugin::Info>,
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct Loader {
-    pub name: String,
-    pub minecraft_version: String,
-    pub version: String,
-}
-
-impl Default for Loader {
-    fn default() -> Self {
-        Self {
-            name: String::default(),
-            minecraft_version: String::from("latest"),
-            version: String::from("latest"),
-        }
-    }
 }
 
 impl Lockfile {
@@ -50,12 +33,12 @@ impl Lockfile {
         File::create(LOCKFILE_PATH)?;
 
         Ok(Self {
-            loader: Loader::default(),
+            loader: loader::Loader::default(),
             plugins: vec![],
         })
     }
 
-    pub fn with_params(minecraft_version: &str, loader: &str) -> Result<Self> {
+    pub fn with_params(minecraft_version: &str, loader_name: &str) -> Result<Self> {
         let mv = Versioning::new(minecraft_version).unwrap();
         if mv.is_complex() {
             return Err(anyhow!(
@@ -64,16 +47,12 @@ impl Lockfile {
             ));
         }
 
-        let l = Loader {
-            name: loader.to_string(),
-            minecraft_version: minecraft_version.to_string(),
-            version: String::from("latest"),
-        };
+        let loader = loader::Loader::new(loader_name, minecraft_version, "latest");
 
         File::create(LOCKFILE_PATH)?;
 
         let lf = Self {
-            loader: l,
+            loader,
             plugins: vec![],
         };
 
@@ -137,7 +116,7 @@ impl Lockfile {
                 .ok_or_else(|| anyhow!("{slug} does not exist in the lockfile"))?;
 
             if !keep_jarfile {
-                fs::remove_file(self.plugins[idx].get_file_path(&self.loader.name))?;
+                fs::remove_file(self.plugins[idx].get_file_path(&self.loader))?;
             }
 
             self.plugins.remove(idx);
@@ -153,7 +132,7 @@ impl Lockfile {
 
         let version = Versioning::new(minecraft_version).unwrap();
 
-        !version.is_complex() && loader::parse(&self.loader.name).is_ok()
+        !version.is_complex() && self.loader.name != "none"
     }
 
     pub fn save(&self) -> Result<()> {

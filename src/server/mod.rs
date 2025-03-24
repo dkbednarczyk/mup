@@ -6,8 +6,7 @@ pub mod lockfile;
 
 use lockfile::Lockfile;
 
-use crate::loader;
-use crate::plugin;
+use crate::{loader, plugin};
 
 #[derive(Debug, Subcommand)]
 pub enum Server {
@@ -18,7 +17,7 @@ pub enum Server {
         minecraft_version: String,
 
         /// Which loader to use
-        #[arg(short, long, required = true)]
+        #[arg(short, long, required = true, value_parser = loader::Loader::parse_name)]
         loader: String,
     },
 
@@ -49,11 +48,7 @@ fn init(minecraft_version: &str, loader: &str) -> Result<()> {
         ));
     }
 
-    loader::fetch(
-        &lf.loader.name,
-        &lf.loader.minecraft_version,
-        &lf.loader.version,
-    )?;
+    lf.loader.fetch()?;
 
     eula::sign()?;
 
@@ -66,14 +61,10 @@ fn install() -> Result<()> {
         return Err(anyhow!("failed to read lockfile"));
     }
 
-    loader::fetch(
-        &lf.loader.name,
-        &lf.loader.minecraft_version,
-        &lf.loader.version,
-    )?;
+    lf.loader.fetch()?;
 
     for entry in &lf.plugins {
-        plugin::download(&entry.source, &lf.loader.name, entry.checksum.as_ref())?;
+        plugin::download_plugin(&lf, entry)?;
     }
 
     eula::sign()?;

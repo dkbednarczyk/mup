@@ -29,7 +29,7 @@ enum Commands {
     #[clap(alias = "l")]
     Loader {
         /// Name of the loader to download
-        #[arg(short, long, value_name = "loader", value_parser = loader::parse)]
+        #[arg(short, long, value_name = "loader", value_parser = loader::Loader::parse_name)]
         name: String,
 
         /// Minecraft version to target
@@ -68,7 +68,7 @@ fn main() -> Result<()> {
             name,
             minecraft_version,
             version,
-        }) => loader::fetch(name, minecraft_version, version)?,
+        }) => loader::Loader::new(name, minecraft_version, version).fetch()?,
         Some(Commands::Plugin(p)) => plugin::action(p)?,
         Some(Commands::Server(s)) => server::action(s)?,
         None => (),

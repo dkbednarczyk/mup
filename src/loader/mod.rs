@@ -1,34 +1,61 @@
 use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 
 mod fabric;
 mod forge;
 mod neoforge;
 mod paper;
 
-const VALID_LOADERS: [&str; 4] = ["fabric", "forge", "paper", "neoforge"];
+const VALID_LOADERS: [&str; 4] = ["paper", "fabric", "forge", "neoforge"];
 
-pub fn fetch(loader: &str, minecraft_version: &str, version: &str) -> Result<()> {
-    match loader {
-        "paper" => paper::fetch(minecraft_version, version),
-        "fabric" => fabric::fetch(minecraft_version, version),
-        "forge" => forge::fetch(minecraft_version, version),
-        "neoforge" => neoforge::fetch(minecraft_version),
-        l => Err(anyhow!("{l} is currently unsupported")),
+#[derive(Deserialize, Serialize)]
+pub struct Loader {
+    pub name: String,
+    pub minecraft_version: String,
+    pub loader_version: String,
+}
+
+impl Default for Loader {
+    fn default() -> Self {
+        Self {
+            name: String::from("none"),
+            minecraft_version: String::from("latest"),
+            loader_version: String::from("latest"),
+        }
     }
 }
 
-pub fn location(loader: &str) -> &str {
-    match loader {
-        "paper" => "plugins",
-        "fabric" | "forge" | "neoforge" => "mods",
-        _ => unreachable!(),
-    }
-}
+impl Loader {
+    pub fn new(loader: &str, minecraft_version: &str, version: &str) -> Self {
+        Self {
+            name: loader.to_string(),
+            minecraft_version: minecraft_version.to_string(),
+            loader_version: version.to_string(),
+        }
+    } 
 
-pub fn parse(input: &str) -> Result<String> {
-    if !VALID_LOADERS.contains(&input) {
-        return Err(anyhow!("try one of {VALID_LOADERS:?}"));
+    pub fn fetch(&self) -> Result<()> {
+        match self.name.as_str() {
+            "paper" => paper::fetch(&self.minecraft_version, &self.loader_version),
+            "fabric" => fabric::fetch(&self.minecraft_version, &self.loader_version),
+            "forge" => forge::fetch(&self.minecraft_version, &self.loader_version),
+            "neoforge" => neoforge::fetch(&self.minecraft_version),
+            _ => Ok(()),
+        }
     }
 
-    Ok(input.to_string())
+    pub fn mod_location(&self) -> &str {
+        match self.name.as_str() {
+            "paper" => "plugins",
+            _ => "mods",
+        }
+    }
+
+    pub fn parse_name(input: &str) -> Result<String> {
+        if !VALID_LOADERS.contains(&input) {
+            return Err(anyhow!("try one of {VALID_LOADERS:?}"));
+        }
+    
+        Ok(input.to_string())
+    }
 }
