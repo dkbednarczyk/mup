@@ -7,13 +7,10 @@ use std::{
 use anyhow::{anyhow, Result};
 use log::info;
 
-pub const FAKE_USER_AGENT: &str =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.3";
+pub const USER_AGENT: &str = "dkbednarczyk/mup/0.1.0 (damian@bednarczyk.xyz)";
 
 pub fn download(url: &str, path: &Path) -> Result<()> {
-    let mut resp = ureq::get(url)
-        .header("User-Agent", FAKE_USER_AGENT)
-        .call()?;
+    let mut resp = ureq::get(url).header("User-Agent", USER_AGENT).call()?;
 
     let mut body = resp.body_mut().as_reader();
 
@@ -30,9 +27,7 @@ pub fn download_with_checksum<T: sha2::Digest + Write>(
 ) -> Result<()> {
     info!("downloading jarfile from {url}");
 
-    let mut resp = ureq::get(url)
-        .header("User-Agent", FAKE_USER_AGENT)
-        .call()?;
+    let mut resp = ureq::get(url).header("User-Agent", USER_AGENT).call()?;
 
     let mut body = resp.body_mut().as_reader();
 
@@ -74,7 +69,7 @@ pub fn download_with_checksum<T: sha2::Digest + Write>(
 
 pub fn get_json<T: serde::de::DeserializeOwned>(url: &str) -> Result<T, ureq::Error> {
     ureq::get(url)
-        .header("User-Agent", FAKE_USER_AGENT)
+        .header("User-Agent", USER_AGENT)
         .call()?
         .body_mut()
         .read_json::<T>()
@@ -82,7 +77,7 @@ pub fn get_json<T: serde::de::DeserializeOwned>(url: &str) -> Result<T, ureq::Er
 
 pub fn get_string(url: &str) -> Result<String, ureq::Error> {
     ureq::get(url)
-        .header("User-Agent", FAKE_USER_AGENT)
+        .header("User-Agent", USER_AGENT)
         .call()?
         .body_mut()
         .read_to_string()

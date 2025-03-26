@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
 use clap::Subcommand;
-use log::warn;
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Sha512};
 
@@ -132,22 +131,11 @@ pub fn add(
         return Err(anyhow!("project {project_id} is already installed"));
     }
 
-    let info: Result<Info> = match provider {
-        "modrinth" => modrinth::fetch(&lockfile, project_id, version),
-        "hangar" => hangar::fetch(&lockfile, project_id, version),
+    let info = match provider {
+        "modrinth" => modrinth::fetch(&lockfile, project_id, version)?,
+        "hangar" => hangar::fetch(&lockfile, project_id, version)?,
         _ => unimplemented!(),
     };
-
-    if let Some(error) = info.as_ref().err() {
-        if &error.to_string() == "client side" {
-            warn!("project {project_id} does not support server side, skipping");
-            return Ok(());
-        }
-
-        return Err(info.err().unwrap());
-    }
-
-    let info = info.unwrap();
 
     if let Some(deps) = &info.dependencies {
         for dep in deps {
@@ -164,6 +152,7 @@ pub fn add(
     }
 
     download_plugin(&lockfile, &info)?;
+
     lockfile.add(info)
 }
 

@@ -5,7 +5,7 @@ use crate::server::lockfile::Lockfile;
 use anyhow::{anyhow, Result};
 use log::info;
 use serde::Deserialize;
-use versions::Versioning;
+use versions::SemVer;
 
 const BASE_URL: &str = "https://hangar.papermc.io/api/v1";
 
@@ -41,43 +41,47 @@ pub fn fetch(lockfile: &Lockfile, project_id: &str, version: &str) -> Result<sup
     info!("fetching info of project {project_id}");
 
     let formatted_url = format!("{BASE_URL}/projects/{project_id}");
-    let project_info: ProjectInfo = mup::get_json(&formatted_url)?;
+    let mut resp = ureq::get(formatted_url)
+        .header("User-Agent", mup::USER_AGENT)
+        .call()?;
 
-    let project_id = project_info.name;
+    if resp.status() == 404 {
+        return Err(anyhow!("project {project_id} does not exist"));
+    }
+
+    let project_info: ProjectInfo = resp.body_mut().read_json()?;
+    let project = project_info.name;
 
     let version = if version == "latest" {
-        info!("fetching latest version of project {project_id}");
+        info!("fetching latest version of project {project}");
 
-        let formatted_url = format!("{BASE_URL}/projects/{project_id}/latest");
+        let formatted_url = format!("{BASE_URL}/projects/{project}/latestrelease");
 
         mup::get_string(&formatted_url)?
     } else {
         version.into()
     };
 
-    info!("fetching info for {project_id} v{version}");
+    info!("fetching info for {project} v{version}");
 
-    let formatted_url = format!("{BASE_URL}/projects/{project_id}/versions/{version}");
-
+    let formatted_url = format!("{BASE_URL}/projects/{project}/versions/{version}");
     let version_info: VersionInfo = mup::get_json(&formatted_url)?;
 
     let loader = lockfile.loader.name.to_uppercase();
-
     if !version_info.platform_dependencies.contains_key(&loader) {
         return Err(anyhow!(
-            "plugin version {version} does not support {loader}"
+            "{project} version {version} does not support {loader}"
         ));
     }
 
-    let minecraft_version = Versioning::new(&lockfile.loader.minecraft_version).unwrap();
+    let minecraft_version = SemVer::new(&lockfile.loader.minecraft_version).unwrap();
     let is_compatible = version_info.platform_dependencies[&loader]
         .iter()
-        // Why this doesn't work without the closure I will never know.
-        .filter_map(Versioning::new)
+        .filter_map(SemVer::new)
         .any(|v| v == minecraft_version);
 
     if !is_compatible {
-        return Err(anyhow!("version {version} of {project_id} is incompatible with Minecraft version {minecraft_version}"));
+        return Err(anyhow!("{project} version {version} is incompatible with Minecraft version {minecraft_version}"));
     }
 
     let dependencies = if version_info.dependencies.contains_key(&loader) {
@@ -87,8 +91,8 @@ pub fn fetch(lockfile: &Lockfile, project_id: &str, version: &str) -> Result<sup
     };
 
     let info = super::Info {
-        name: project_id.clone(),
-        id: project_id,
+        name: project.clone(),
+        id: project,
         version,
         source: String::from("hangar"),
         download_url: version_info.downloads[&loader].url.clone(),

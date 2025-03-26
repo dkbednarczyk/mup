@@ -1,8 +1,7 @@
 #![allow(clippy::case_sensitive_file_extension_comparisons)]
 
 use anyhow::{anyhow, Result};
-use log::info;
-use mup::FAKE_USER_AGENT;
+use log::{info, warn};
 use serde::Deserialize;
 
 use crate::server::lockfile::Lockfile;
@@ -45,10 +44,22 @@ pub fn fetch(lockfile: &Lockfile, id: &str, version: &str) -> Result<super::Info
     info!("Fetching project info for {id}");
 
     let formatted_url = format!("{BASE_URL}/project/{id}");
-    let project_info: ProjectInfo = mup::get_json(&formatted_url)?;
+    let mut resp = ureq::get(formatted_url)
+        .header("User-Agent", mup::USER_AGENT)
+        .call()?;
+
+    if resp.status() == 404 {
+        return Err(anyhow!("project {id} does not exist"));
+    }
+
+    let project_info: ProjectInfo = resp.body_mut().read_json()?;
 
     if project_info.server_side == "unsupported" {
-        return Err(anyhow!("client side"));
+        return Err(anyhow!("project {id} does not support server-side"));
+    }
+
+    if project_info.server_side == "unknown" {
+        warn!("project {id} may not support server-side");
     }
 
     if !project_info.loaders.contains(&lockfile.loader.name) {
@@ -70,16 +81,6 @@ pub fn fetch(lockfile: &Lockfile, id: &str, version: &str) -> Result<super::Info
 
     if version != "latest" && !project_info.versions.contains(&version.to_string()) {
         return Err(anyhow!("project version {version} does not exist"));
-    }
-
-    if !project_info
-        .game_versions
-        .contains(&lockfile.loader.minecraft_version)
-    {
-        return Err(anyhow!(
-            "project does not support minecraft version {}",
-            lockfile.loader.minecraft_version
-        ));
     }
 
     let version_info = if version == "latest" {
@@ -134,59 +135,62 @@ fn get_specific_version(
     info!("fetching version {version} of {slug}");
 
     let formatted_url = format!("{BASE_URL}/version/{version}");
-    let resp: Version = mup::get_json(&formatted_url)?;
+    let mut resp = ureq::get(formatted_url)
+        .header("User-Agent", mup::USER_AGENT)
+        .call()?;
+
+    if resp.status() == 404 {
+        return Err(anyhow!("version {version} does not exist"));
+    }
+
+    let resp: Version = resp.body_mut().read_json()?;
 
     if slug != resp.project_id {
         return Err(anyhow!(
-            "version id {version} is not a part of project {}",
-            slug
+            "version id {version} is not a part of project {slug}",
         ));
     }
 
     if !resp.game_versions.contains(minecraft_version) {
         return Err(anyhow!(
-            "version id {version} does not support Minecraft version {minecraft_version}"
+            "version {version} does not support Minecraft {minecraft_version}"
         ));
     }
 
     if !resp.loaders.contains(loader) {
-        return Err(anyhow!(
-            "project version {version} does not support loader {loader}",
-        ));
+        return Err(anyhow!("version {version} does not support {loader}"));
     }
 
     Ok(resp)
 }
 
 fn get_latest_version(slug: &str, minecraft_version: &String, loader: &String) -> Result<Version> {
-    let formatted_url = format!("{BASE_URL}/project/{slug}/version");
+    info!("fetching latest version of {slug}");
 
-    let mut req = ureq::get(&formatted_url)
-        .header("User-Agent", FAKE_USER_AGENT)
+    let formatted_url = format!("{BASE_URL}/project/{slug}/version");
+    let mut resp = ureq::get(formatted_url)
+        .header("User-Agent", mup::USER_AGENT)
         .query(
             "game_versions",
             format!("[\"{minecraft_version}\"]").as_str(),
-        );
+        )
+        .query("loaders", format!("[\"{loader}\"]").as_str())
+        .call()?;
 
-    if !loader.is_empty() {
-        req = req.query("loaders", format!("[\"{loader}\"]").as_str());
+    if resp.status() == 404 {
+        return Err(anyhow!("{slug} has no valid versions"));
     }
 
-    info!("fetching latest version of {slug}");
+    let versions: Vec<Version> = resp.body_mut().read_json()?;
 
-    let resp: Vec<Version> = req.call()?.body_mut().read_json()?;
-
-    let version = resp
+    let version = versions
         .iter()
-        .find(|p| p.game_versions.contains(minecraft_version))
-        .ok_or_else(|| anyhow!("could not find a matching version"))?;
-
-    if !version.loaders.contains(loader) {
-        return Err(anyhow!(
-            "project version ID {} does not support loader {loader}",
-            version.id
-        ));
-    }
+        .find(|p| p.game_versions.contains(minecraft_version) && p.loaders.contains(loader))
+        .ok_or_else(|| {
+            anyhow!(
+                "{slug} for {loader} has no version that supports Minecraft {minecraft_version}"
+            )
+        })?;
 
     Ok(version.clone())
 }
