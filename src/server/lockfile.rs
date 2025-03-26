@@ -16,7 +16,7 @@ const LOCKFILE_PATH: &str = "mup.lock.json";
 #[derive(Deserialize, Default, Serialize)]
 pub struct Lockfile {
     pub loader: loader::Loader,
-    pub plugins: Vec<plugin::Info>,
+    pub mods: Vec<plugin::Info>,
 }
 
 impl Lockfile {
@@ -34,7 +34,7 @@ impl Lockfile {
 
         Ok(Self {
             loader: loader::Loader::default(),
-            plugins: vec![],
+            mods: vec![],
         })
     }
 
@@ -53,7 +53,7 @@ impl Lockfile {
 
         let lf = Self {
             loader,
-            plugins: vec![],
+            mods: vec![],
         };
 
         lf.save()?;
@@ -62,14 +62,14 @@ impl Lockfile {
     }
 
     pub fn get(&self, project_id: &str) -> Result<&plugin::Info> {
-        self.plugins
+        self.mods
             .iter()
-            .find(|p| p.slug == project_id)
+            .find(|p| p.name == project_id)
             .ok_or_else(|| anyhow!("key {project_id} not found"))
     }
 
     pub fn add(&mut self, info: plugin::Info) -> Result<()> {
-        self.plugins.push(info);
+        self.mods.push(info);
 
         self.save()?;
 
@@ -81,45 +81,47 @@ impl Lockfile {
             return Err(anyhow!("project {slug} does not exist in the lockfile"));
         }
 
-        let mut plugins = self.plugins.iter();
+        let mut plugins = self.mods.iter();
 
         let idx = plugins
-            .position(|p| p.slug == slug)
+            .position(|p| p.name == slug)
             .ok_or_else(|| anyhow!("{slug} does not exist in the lockfile"))?;
 
-        let entry = self.plugins[idx].clone();
+        let entry = self.mods[idx].clone();
 
-        let mut to_remove = vec![entry.slug];
+        let mut to_remove = vec![entry.name];
 
-        for dep in entry.dependencies {
-            if !remove_orphans {
-                break;
-            }
+        if let Some(deps) = &entry.dependencies {
+            for dep in deps {
+                if !remove_orphans {
+                    break;
+                }
 
-            let cant_be_removed = plugins.any(|p| {
-                let is_different = p.slug != slug;
-                let requires_dep = p.dependencies.iter().any(|d| *d == dep && d.required);
+                let cant_be_removed = plugins.any(|p| {
+                    let is_different = p.name != slug;
+                    let requires_dep = deps.iter().any(|d| d == dep && d.required.unwrap_or(true));
 
-                is_different && requires_dep
-            });
+                    is_different && requires_dep
+                });
 
-            if !cant_be_removed {
-                to_remove.push(dep.id);
+                if !cant_be_removed {
+                    to_remove.push(dep.id.clone());
+                }
             }
         }
 
         for slug in to_remove {
             let idx = self
-                .plugins
+                .mods
                 .iter()
-                .position(|p| p.slug == slug || p.id == slug)
+                .position(|p| p.name == slug || p.id == slug)
                 .ok_or_else(|| anyhow!("{slug} does not exist in the lockfile"))?;
 
             if !keep_jarfile {
-                fs::remove_file(self.plugins[idx].get_file_path(&self.loader))?;
+                fs::remove_file(self.mods[idx].get_file_path(&self.loader))?;
             }
 
-            self.plugins.remove(idx);
+            self.mods.remove(idx);
         }
 
         self.save()?;

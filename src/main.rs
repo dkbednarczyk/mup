@@ -1,14 +1,12 @@
 #![warn(clippy::all, clippy::pedantic, clippy::nursery)]
 
-use std::env;
-
+use anyhow::Result;
 use clap::{Parser, Subcommand};
+use std::env;
 
 mod loader;
 mod plugin;
 mod server;
-
-use anyhow::Result;
 
 #[derive(Debug, Parser)]
 #[command(author = "Damian Bednarczyk <damian@bednarczyk.xyz>")]
@@ -71,7 +69,7 @@ fn main() -> Result<()> {
         }) => loader::Loader::new(name, minecraft_version, version).fetch()?,
         Some(Commands::Plugin(p)) => plugin::action(p)?,
         Some(Commands::Server(s)) => server::action(s)?,
-        None => (),
+        _ => (),
     }
 
     Ok(())

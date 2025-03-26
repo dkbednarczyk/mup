@@ -103,21 +103,23 @@ pub fn fetch(lockfile: &Lockfile, id: &str, version: &str) -> Result<super::Info
         .find(|f| f.filename.ends_with(".jar"))
         .unwrap();
 
+    let dependencies = if version_info.dependencies.is_empty() {
+        None
+    } else {
+        Some(version_info.dependencies)
+    };
+
     let info = super::Info {
-        slug: project_info.slug,
+        name: project_info.slug,
         id: project_info.id,
         version: version_info.id,
         source: String::from("modrinth"),
-        url: project_file.url.clone(),
-        checksum: Some(format!("sha512#{}", project_file.hashes.sha512)),
-        dependencies: version_info
-            .dependencies
-            .iter()
-            .map(|d| super::Dependency {
-                id: d.id.clone(),
-                required: d.required,
-            })
-            .collect(),
+        download_url: project_file.url.clone(),
+        checksum: Some(super::Checksum {
+            method: String::from("sha512"),
+            hash: project_file.hashes.sha512.clone(),
+        }),
+        dependencies,
     };
 
     Ok(info)

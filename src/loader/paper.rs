@@ -79,7 +79,10 @@ fn get_build(minecraft_version: &str, build: &str) -> Result<Build> {
 
     let body: Builds = mup::get_json(&formatted_url)?;
     if build == "latest" {
-        let first = body.builds.first().ok_or_else(|| anyhow!("could not get latest loader version"))?;
+        let first = body
+            .builds
+            .first()
+            .ok_or_else(|| anyhow!("could not get latest loader version"))?;
         return Ok(first.clone());
     }
 

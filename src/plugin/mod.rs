@@ -53,18 +53,25 @@ pub enum Plugin {
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Info {
-    pub slug: String,
+    pub name: String,
     pub id: String,
     pub version: String,
-    pub dependencies: Vec<Dependency>,
     pub source: String,
-    pub url: String,
-    pub checksum: Option<String>,
+    pub download_url: String,
+
+    pub dependencies: Option<Vec<Dependency>>,
+    pub checksum: Option<Checksum>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub struct Checksum {
+    pub method: String,
+    pub hash: String,
 }
 
 impl Info {
     pub fn get_file_path(&self, loader: &Loader) -> PathBuf {
-        let filename = self.url.rsplit_once('/').unwrap().1;
+        let filename = self.download_url.rsplit_once('/').unwrap().1;
         let formatted = format!("{}/{}", loader.mod_location(), filename);
 
         formatted.into()
@@ -75,8 +82,8 @@ impl Info {
 pub struct Dependency {
     #[serde(alias = "project_id")]
     pub id: String,
-    #[serde(skip)]
-    pub required: bool,
+    pub version: Option<String>,
+    pub required: Option<bool>,
 }
 
 impl PartialEq for Dependency {
@@ -121,6 +128,10 @@ pub fn add(
         ));
     }
 
+    if lockfile.get(project_id).is_ok() {
+        return Err(anyhow!("project {project_id} is already installed"));
+    }
+
     let info: Result<Info> = match provider {
         "modrinth" => modrinth::fetch(&lockfile, project_id, version),
         "hangar" => hangar::fetch(&lockfile, project_id, version),
@@ -138,18 +149,21 @@ pub fn add(
 
     let info = info.unwrap();
 
-    for dep in &info.dependencies {
-        if no_deps {
-            break;
-        }
+    if let Some(deps) = &info.dependencies {
+        for dep in deps {
+            if no_deps {
+                break;
+            }
 
-        if !dep.required && !optional_deps {
-            continue;
-        }
+            if dep.required.unwrap_or(true) && !optional_deps {
+                continue;
+            }
 
-        add(provider, &dep.id, "latest", false, false)?;
+            add(provider, &dep.id, "latest", false, false)?;
+        }
     }
 
+    download_plugin(&lockfile, &info)?;
     lockfile.add(info)
 }
 
@@ -157,15 +171,19 @@ pub fn download_plugin(lockfile: &Lockfile, info: &Info) -> Result<()> {
     let file_path = info.get_file_path(&lockfile.loader);
 
     info.checksum.as_ref().map_or_else(
-        || mup::download(&info.url, &file_path),
-        |checksum| {
-            let (method, hash) = checksum.split_once('#').unwrap();
-
-            match method {
-                "sha256" => mup::download_with_checksum::<Sha256>(&info.url, &file_path, hash),
-                "sha512" => mup::download_with_checksum::<Sha512>(&info.url, &file_path, hash),
-                _ => unimplemented!(),
-            }
+        || mup::download(&info.download_url, &file_path),
+        |checksum| match checksum.method.as_str() {
+            "sha256" => mup::download_with_checksum::<Sha256>(
+                &info.download_url,
+                &file_path,
+                &checksum.hash,
+            ),
+            "sha512" => mup::download_with_checksum::<Sha512>(
+                &info.download_url,
+                &file_path,
+                &checksum.hash,
+            ),
+            _ => unimplemented!(),
         },
     )
 }

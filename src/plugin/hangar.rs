@@ -13,7 +13,7 @@ const BASE_URL: &str = "https://hangar.papermc.io/api/v1";
 struct VersionInfo {
     downloads: HashMap<String, Download>,
     #[serde(rename = "pluginDependencies")]
-    dependencies: HashMap<String, Vec<HDependency>>,
+    dependencies: HashMap<String, Vec<super::Dependency>>,
     #[serde(rename = "platformDependencies")]
     platform_dependencies: HashMap<String, Vec<String>>,
 }
@@ -30,12 +30,6 @@ struct Download {
 struct FileInfo {
     #[serde(rename = "sha256Hash")]
     sha256: String,
-}
-
-#[derive(Deserialize)]
-struct HDependency {
-    name: String,
-    required: bool,
 }
 
 #[derive(Deserialize)]
@@ -87,27 +81,21 @@ pub fn fetch(lockfile: &Lockfile, project_id: &str, version: &str) -> Result<sup
     }
 
     let dependencies = if version_info.dependencies.contains_key(&loader) {
-        version_info.dependencies[&loader]
-            .iter()
-            .map(|d| super::Dependency {
-                id: d.name.clone(),
-                required: d.required,
-            })
-            .collect()
+        Some(version_info.dependencies[&loader].clone())
     } else {
-        vec![]
+        None
     };
 
     let info = super::Info {
-        slug: project_id.clone(),
+        name: project_id.clone(),
         id: project_id,
         version,
         source: String::from("hangar"),
-        url: version_info.downloads[&loader].url.clone(),
-        checksum: Some(format!(
-            "sha256#{}",
-            version_info.downloads[&loader].file_info.sha256
-        )),
+        download_url: version_info.downloads[&loader].url.clone(),
+        checksum: Some(super::Checksum {
+            method: String::from("sha256"),
+            hash: version_info.downloads[&loader].file_info.sha256.clone(),
+        }),
         dependencies,
     };
 

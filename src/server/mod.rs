@@ -63,7 +63,7 @@ fn install() -> Result<()> {
 
     lf.loader.fetch()?;
 
-    for entry in &lf.plugins {
+    for entry in &lf.mods {
         plugin::download_plugin(&lf, entry)?;
     }
 
