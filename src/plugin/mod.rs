@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
 use clap::Subcommand;
+use log::info;
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Sha512};
 
@@ -119,6 +120,8 @@ pub fn add(
     optional_deps: bool,
     no_deps: bool,
 ) -> Result<()> {
+    info!("adding {project_id} version {version} from {provider}");
+
     let mut lockfile = Lockfile::init()?;
 
     if !lockfile.is_initialized() {
@@ -157,22 +160,35 @@ pub fn add(
 }
 
 pub fn download_plugin(lockfile: &Lockfile, info: &Info) -> Result<()> {
+    info!(
+        "downloading {} for {} version {}",
+        info.name, lockfile.loader.name, info.version
+    );
+
     let file_path = info.get_file_path(&lockfile.loader);
 
     info.checksum.as_ref().map_or_else(
         || mup::download(&info.download_url, &file_path),
-        |checksum| match checksum.method.as_str() {
-            "sha256" => mup::download_with_checksum::<Sha256>(
-                &info.download_url,
-                &file_path,
-                &checksum.hash,
-            ),
-            "sha512" => mup::download_with_checksum::<Sha512>(
-                &info.download_url,
-                &file_path,
-                &checksum.hash,
-            ),
-            _ => unimplemented!(),
+        |checksum| {
+            info!(
+                "downloading jarfile to {} from {}",
+                file_path.to_str().unwrap(),
+                info.download_url
+            );
+
+            match checksum.method.as_str() {
+                "sha256" => mup::download_with_checksum::<Sha256>(
+                    &info.download_url,
+                    &file_path,
+                    &checksum.hash,
+                ),
+                "sha512" => mup::download_with_checksum::<Sha512>(
+                    &info.download_url,
+                    &file_path,
+                    &checksum.hash,
+                ),
+                _ => unimplemented!(),
+            }
         },
     )
 }

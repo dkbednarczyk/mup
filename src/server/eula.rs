@@ -4,8 +4,11 @@ use std::{
 };
 
 use anyhow::Result;
+use log::info;
 
 pub fn sign() -> Result<()> {
+    info!("overwriting eula.txt");
+
     let mut file = if fs::metadata("eula.txt").is_err() {
         File::create("eula.txt")?
     } else {

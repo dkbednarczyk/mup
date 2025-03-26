@@ -10,6 +10,8 @@ use log::info;
 pub const USER_AGENT: &str = "dkbednarczyk/mup/0.1.0 (damian@bednarczyk.xyz)";
 
 pub fn download(url: &str, path: &Path) -> Result<()> {
+    info!("downloading {} from {url}", path.to_str().unwrap());
+
     let mut resp = ureq::get(url).header("User-Agent", USER_AGENT).call()?;
 
     let mut body = resp.body_mut().as_reader();
@@ -25,7 +27,10 @@ pub fn download_with_checksum<T: sha2::Digest + Write>(
     path: &Path,
     wanted_hash: &str,
 ) -> Result<()> {
-    info!("downloading jarfile from {url}");
+    info!(
+        "downloading {} from {url} with expected hash {wanted_hash}",
+        path.to_str().unwrap()
+    );
 
     let mut resp = ureq::get(url).header("User-Agent", USER_AGENT).call()?;
 
@@ -68,6 +73,8 @@ pub fn download_with_checksum<T: sha2::Digest + Write>(
 }
 
 pub fn get_json<T: serde::de::DeserializeOwned>(url: &str) -> Result<T, ureq::Error> {
+    info!("fetching json from {url}");
+
     ureq::get(url)
         .header("User-Agent", USER_AGENT)
         .call()?
@@ -76,6 +83,8 @@ pub fn get_json<T: serde::de::DeserializeOwned>(url: &str) -> Result<T, ureq::Er
 }
 
 pub fn get_string(url: &str) -> Result<String, ureq::Error> {
+    info!("fetching string from {url}");
+
     ureq::get(url)
         .header("User-Agent", USER_AGENT)
         .call()?

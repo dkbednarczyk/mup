@@ -21,7 +21,11 @@ pub struct Lockfile {
 
 impl Lockfile {
     pub fn init() -> Result<Self> {
+        info!("initializing lockfile");
+
         if PathBuf::from(LOCKFILE_PATH).exists() {
+            info!("using existing lockfile");
+
             let mut current_lockfile = File::open(LOCKFILE_PATH)?;
 
             let mut contents = String::new();
@@ -29,6 +33,8 @@ impl Lockfile {
 
             return Ok(serde_json::from_str(&contents)?);
         }
+
+        info!("creating new lockfile");
 
         File::create(LOCKFILE_PATH)?;
 
@@ -39,6 +45,8 @@ impl Lockfile {
     }
 
     pub fn with_params(minecraft_version: &str, loader_name: &str) -> Result<Self> {
+        info!("initializing lockfile with Minecraft version {minecraft_version} and loader {loader_name}");
+
         let mv = Versioning::new(minecraft_version).unwrap();
         if mv.is_complex() {
             return Err(anyhow!(
@@ -77,6 +85,8 @@ impl Lockfile {
     }
 
     pub fn remove(&mut self, slug: &str, keep_jarfile: bool, remove_orphans: bool) -> Result<()> {
+        info!("removing {slug} from lockfile");
+
         if self.get(slug).is_err() {
             return Err(anyhow!("project {slug} does not exist in the lockfile"));
         }

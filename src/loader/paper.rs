@@ -48,12 +48,11 @@ pub fn fetch(minecraft_version: &str, build: &str) -> Result<()> {
     );
 
     let filename = format!("paper-{minecraft}-{}.jar", build.build);
+    let wanted_hash = build.downloads.application.sha256;
 
-    mup::download_with_checksum::<Sha256>(
-        &formatted_url,
-        &PathBuf::from(filename),
-        &build.downloads.application.sha256,
-    )?;
+    info!("downloading jarfile");
+
+    mup::download_with_checksum::<Sha256>(&formatted_url, &PathBuf::from(filename), &wanted_hash)?;
 
     Ok(())
 }

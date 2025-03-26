@@ -37,17 +37,17 @@ pub fn fetch(minecraft_version: &str) -> Result<()> {
 
     let installer: Installer = mup::get_json(&endpoint)?;
 
-    info!("downloading installer jarfile");
-
     let installer_url = format!(
         "{DOWNLOAD_URL}/{}/neoforge-{}-installer.jar",
         installer.version, installer.version
     );
     let filename = format!("neoforge-{minecraft_version}-{}.jar", installer.version);
 
+    info!("downloading installer jarfile");
+
     mup::download(&installer_url, Path::new(&filename))?;
 
-    warn!("neoforge servers must be installed manually, run the downloaded installer before proceeding");
+    warn!("neoforge servers must be installed manually using the downloaded jarfile");
 
     Ok(())
 }

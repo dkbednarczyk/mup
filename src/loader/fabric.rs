@@ -25,10 +25,12 @@ pub fn fetch(minecraft_version: &str, loader_version: &str) -> Result<()> {
         .ok_or_else(|| anyhow!("failed to retrieve latest installer"))?
         .version;
 
-    info!("downloading jarfile");
-
     let formatted_url = format!("{BASE_URL}/loader/{game}/{loader}/{installer}/server/jar");
-    mup::download(&formatted_url, Path::new("fabric.jar"))?;
+    let filename = format!("fabric-{game}-{loader}.jar");
+
+    info!("downloading jarfile to {filename} from {formatted_url}");
+
+    mup::download(&formatted_url, Path::new(&filename))?;
 
     Ok(())
 }
