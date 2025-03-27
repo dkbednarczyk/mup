@@ -19,6 +19,10 @@ pub enum Server {
         /// Which loader to use
         #[arg(short, long, required = true, value_parser = loader::Loader::parse_name)]
         loader: String,
+
+        /// Do not sign the eula automatically
+        #[arg(long, action)]
+        no_sign: bool,
     },
 
     /// Sign the eula.txt
@@ -33,13 +37,14 @@ pub fn action(server: &Server) -> Result<()> {
         Server::Init {
             minecraft_version,
             loader,
-        } => init(minecraft_version, loader),
+            no_sign,
+        } => init(minecraft_version, loader, *no_sign),
         Server::Sign => eula::sign(),
         Server::Install => install(),
     }
 }
 
-fn init(minecraft_version: &str, loader: &str) -> Result<()> {
+fn init(minecraft_version: &str, loader: &str, no_sign: bool) -> Result<()> {
     let lf = Lockfile::with_params(minecraft_version, loader)?;
 
     if !lf.is_initialized() {
@@ -50,7 +55,9 @@ fn init(minecraft_version: &str, loader: &str) -> Result<()> {
 
     lf.loader.fetch()?;
 
-    eula::sign()?;
+    if !no_sign {
+        eula::sign()?;
+    }
 
     Ok(())
 }
