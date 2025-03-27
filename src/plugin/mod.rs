@@ -1,9 +1,9 @@
-use std::path::PathBuf;
+use std::{fmt, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use clap::Subcommand;
 use log::info;
-use serde::{Deserialize, Serialize};
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
 use sha2::{Sha256, Sha512};
 
 use crate::{loader::Loader, server::lockfile::Lockfile};
@@ -78,12 +78,54 @@ impl Info {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Dependency {
     #[serde(alias = "project_id")]
     pub id: String,
     pub version: Option<String>,
-    pub required: Option<bool>,
+    #[serde(deserialize_with = "bool_from_string", alias = "dependency_type")]
+    pub required: bool,
+}
+
+fn bool_from_string<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct BoolOrString;
+
+    impl Visitor<'_> for BoolOrString {
+        type Value = bool;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a boolean or a string")
+        }
+
+        fn visit_bool<E>(self, value: bool) -> Result<bool, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(value)
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<bool, E>
+        where
+            E: serde::de::Error,
+        {
+            match value {
+                "required" => Ok(true),
+                _ => Ok(false),
+            }
+        }
+
+        fn visit_string<E>(self, value: String) -> Result<bool, E>
+        where
+            E: serde::de::Error,
+        {
+            self.visit_str(&value)
+        }
+    }
+
+    deserializer.deserialize_any(BoolOrString)
 }
 
 impl PartialEq for Dependency {
@@ -146,7 +188,7 @@ pub fn add(
                 break;
             }
 
-            if dep.required.unwrap_or(true) && !optional_deps {
+            if !dep.required && !optional_deps {
                 continue;
             }
 

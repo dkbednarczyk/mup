@@ -109,7 +109,7 @@ impl Lockfile {
 
                 let cant_be_removed = plugins.any(|p| {
                     let is_different = p.name != slug;
-                    let requires_dep = deps.iter().any(|d| d == dep && d.required.unwrap_or(true));
+                    let requires_dep = deps.iter().any(|d| d == dep && d.required);
 
                     is_different && requires_dep
                 });
