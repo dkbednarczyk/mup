@@ -3,7 +3,10 @@ use std::{fmt, path::PathBuf};
 use anyhow::{anyhow, Result};
 use clap::Subcommand;
 use log::info;
-use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
+use serde::{
+    de::{self, Visitor},
+    Deserialize, Deserializer, Serialize,
+};
 use sha2::{Sha256, Sha512};
 
 use crate::{loader::Loader, server::lockfile::Lockfile};
@@ -87,10 +90,10 @@ pub struct Dependency {
     pub required: bool,
 }
 
-fn bool_from_string<'de, D>(deserializer: D) -> Result<bool, D::Error>
-where
-    D: Deserializer<'de>,
-{
+// Modrinth returns dependency requirements as strings
+// We assume "required" is true and anything else is false
+// This is also used for deserializing the lockfile itself
+fn bool_from_string<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
     struct BoolOrString;
 
     impl Visitor<'_> for BoolOrString {
@@ -100,27 +103,18 @@ where
             formatter.write_str("a boolean or a string")
         }
 
-        fn visit_bool<E>(self, value: bool) -> Result<bool, E>
-        where
-            E: serde::de::Error,
-        {
+        fn visit_bool<E: de::Error>(self, value: bool) -> Result<bool, E> {
             Ok(value)
         }
 
-        fn visit_str<E>(self, value: &str) -> Result<bool, E>
-        where
-            E: serde::de::Error,
-        {
+        fn visit_str<E: de::Error>(self, value: &str) -> Result<bool, E> {
             match value {
                 "required" => Ok(true),
                 _ => Ok(false),
             }
         }
 
-        fn visit_string<E>(self, value: String) -> Result<bool, E>
-        where
-            E: serde::de::Error,
-        {
+        fn visit_string<E: de::Error>(self, value: String) -> Result<bool, E> {
             self.visit_str(&value)
         }
     }
