@@ -1,12 +1,9 @@
-use std::{fmt, path::PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
 use clap::Subcommand;
 use log::info;
-use serde::{
-    de::{self, Visitor},
-    Deserialize, Deserializer, Serialize,
-};
+use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Sha512};
 
 use crate::{loader::Loader, server::lockfile::Lockfile};
@@ -83,43 +80,29 @@ impl Info {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Dependency {
-    #[serde(alias = "project_id")]
+    pub source: String,
     pub id: String,
-    pub version: Option<String>,
-    #[serde(deserialize_with = "bool_from_string", alias = "dependency_type")]
     pub required: bool,
 }
 
-// Modrinth returns dependency requirements as strings
-// We assume "required" is true and anything else is false
-// This is also used for deserializing the lockfile itself
-fn bool_from_string<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
-    struct BoolOrString;
-
-    impl Visitor<'_> for BoolOrString {
-        type Value = bool;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a boolean or a string")
-        }
-
-        fn visit_bool<E: de::Error>(self, value: bool) -> Result<bool, E> {
-            Ok(value)
-        }
-
-        fn visit_str<E: de::Error>(self, value: &str) -> Result<bool, E> {
-            match value {
-                "required" => Ok(true),
-                _ => Ok(false),
-            }
-        }
-
-        fn visit_string<E: de::Error>(self, value: String) -> Result<bool, E> {
-            self.visit_str(&value)
+impl From<&modrinth::ModrinthDependency> for Dependency {
+    fn from(val: &modrinth::ModrinthDependency) -> Self {
+        Self {
+            source: String::from("modrinth"),
+            id: val.project_id.clone(),
+            required: val.dependency_type == "required",
         }
     }
+}
 
-    deserializer.deserialize_any(BoolOrString)
+impl From<&hangar::HangarDependency> for Dependency {
+    fn from(val: &hangar::HangarDependency) -> Self {
+        Self {
+            source: String::from("hangar"),
+            id: val.name.clone(),
+            required: val.required,
+        }
+    }
 }
 
 impl PartialEq for Dependency {

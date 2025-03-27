@@ -13,9 +13,15 @@ const BASE_URL: &str = "https://hangar.papermc.io/api/v1";
 struct VersionInfo {
     downloads: HashMap<String, Download>,
     #[serde(rename = "pluginDependencies")]
-    dependencies: HashMap<String, Vec<super::Dependency>>,
+    dependencies: HashMap<String, Vec<HangarDependency>>,
     #[serde(rename = "platformDependencies")]
     platform_dependencies: HashMap<String, Vec<String>>,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct HangarDependency {
+    pub name: String,
+    pub required: bool,
 }
 
 #[derive(Deserialize)]
@@ -85,7 +91,12 @@ pub fn fetch(lockfile: &Lockfile, project_id: &str, version: &str) -> Result<sup
     }
 
     let dependencies = if version_info.dependencies.contains_key(&loader) {
-        Some(version_info.dependencies[&loader].clone())
+        Some(
+            version_info.dependencies[&loader]
+                .iter()
+                .map(super::Dependency::from)
+                .collect(),
+        )
     } else {
         None
     };

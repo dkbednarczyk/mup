@@ -12,10 +12,16 @@ const BASE_URL: &str = "https://api.modrinth.com/v2";
 pub struct Version {
     pub id: String,
     pub project_id: String,
-    pub dependencies: Vec<super::Dependency>,
+    pub dependencies: Vec<ModrinthDependency>,
     game_versions: Vec<String>,
     loaders: Vec<String>,
     files: Vec<ProjectFile>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct ModrinthDependency {
+    pub project_id: String,
+    pub dependency_type: String,
 }
 
 #[derive(Clone, Deserialize)]
@@ -107,7 +113,13 @@ pub fn fetch(lockfile: &Lockfile, id: &str, version: &str) -> Result<super::Info
     let dependencies = if version_info.dependencies.is_empty() {
         None
     } else {
-        Some(version_info.dependencies)
+        Some(
+            version_info
+                .dependencies
+                .iter()
+                .map(super::Dependency::from)
+                .collect(),
+        )
     };
 
     let info = super::Info {

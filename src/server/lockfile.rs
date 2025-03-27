@@ -1,6 +1,6 @@
 use std::{
     fs::{self, File},
-    io::{Read, Write},
+    io::Read,
     path::PathBuf,
 };
 
@@ -155,7 +155,7 @@ impl Lockfile {
             .truncate(true)
             .open(LOCKFILE_PATH)?;
 
-        output.write_all(serde_json::to_string(&self)?.as_bytes())?;
+        serde_json::to_writer_pretty(&mut output, &self)?;
 
         Ok(())
     }
