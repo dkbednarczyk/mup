@@ -18,7 +18,7 @@ pub struct Version {
     files: Vec<ProjectFile>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct ModrinthDependency {
     #[serde(skip)]
     pub slug: String,
@@ -92,18 +92,9 @@ pub fn fetch(lockfile: &Lockfile, id: &str, version: &str) -> Result<super::Info
     }
 
     let mut version_info = if version == "latest" {
-        get_latest_version(
-            &project_info.slug,
-            &lockfile.loader.minecraft_version,
-            &lockfile.loader.name,
-        )?
+        get_latest_version(lockfile, &project_info.slug)?
     } else {
-        get_specific_version(
-            &project_info.slug,
-            version,
-            &lockfile.loader.minecraft_version,
-            &lockfile.loader.name,
-        )?
+        get_specific_version(lockfile, &project_info.slug, version)?
     };
 
     let project_file = version_info
@@ -165,12 +156,7 @@ fn get_project_name(project_id: &str) -> Result<String> {
     Ok(resp.slug)
 }
 
-fn get_specific_version(
-    slug: &str,
-    version: &str,
-    minecraft_version: &String,
-    loader: &String,
-) -> Result<Version> {
+fn get_specific_version(lockfile: &Lockfile, slug: &str, version: &str) -> Result<Version> {
     info!("fetching version {version} of {slug}");
 
     let formatted_url = format!("{BASE_URL}/version/{version}");
@@ -190,29 +176,36 @@ fn get_specific_version(
         ));
     }
 
-    if !resp.game_versions.contains(minecraft_version) {
+    if !resp
+        .game_versions
+        .contains(&lockfile.loader.minecraft_version)
+    {
         return Err(anyhow!(
-            "version {version} does not support Minecraft {minecraft_version}"
+            "version {version} does not support Minecraft {}",
+            lockfile.loader.minecraft_version
         ));
     }
 
-    if !resp.loaders.contains(loader) {
-        return Err(anyhow!("version {version} does not support {loader}"));
+    if !resp.loaders.contains(&lockfile.loader.name) {
+        return Err(anyhow!(
+            "version {version} does not support {}",
+            lockfile.loader.name
+        ));
     }
 
     Ok(resp)
 }
 
-fn get_latest_version(slug: &str, minecraft_version: &String, loader: &String) -> Result<Version> {
+fn get_latest_version(lockfile: &Lockfile, slug: &str) -> Result<Version> {
     info!("fetching latest version of {slug}");
+
+    let loader = &lockfile.loader.name;
+    let version = &lockfile.loader.minecraft_version;
 
     let formatted_url = format!("{BASE_URL}/project/{slug}/version");
     let mut resp = ureq::get(formatted_url)
         .header("User-Agent", mup::USER_AGENT)
-        .query(
-            "game_versions",
-            format!("[\"{minecraft_version}\"]").as_str(),
-        )
+        .query("game_versions", format!("[\"{version}\"]").as_str())
         .query("loaders", format!("[\"{loader}\"]").as_str())
         .call()?;
 
@@ -224,11 +217,9 @@ fn get_latest_version(slug: &str, minecraft_version: &String, loader: &String) -
 
     let version = versions
         .iter()
-        .find(|p| p.game_versions.contains(minecraft_version) && p.loaders.contains(loader))
+        .find(|p| p.game_versions.contains(version) && p.loaders.contains(loader))
         .ok_or_else(|| {
-            anyhow!(
-                "{slug} for {loader} has no version that supports Minecraft {minecraft_version}"
-            )
+            anyhow!("{slug} for {loader} has no version that supports Minecraft {version}")
         })?;
 
     Ok(version.clone())

@@ -1,6 +1,5 @@
 use std::{
     fs::{self, File},
-    io::Read,
     path::PathBuf,
 };
 
@@ -26,12 +25,9 @@ impl Lockfile {
         if PathBuf::from(LOCKFILE_PATH).exists() {
             info!("using existing lockfile");
 
-            let mut current_lockfile = File::open(LOCKFILE_PATH)?;
+            let current_lockfile = File::open(LOCKFILE_PATH)?;
 
-            let mut contents = String::new();
-            current_lockfile.read_to_string(&mut contents)?;
-
-            return Ok(serde_json::from_str(&contents)?);
+            return Ok(serde_json::from_reader(&current_lockfile)?);
         }
 
         info!("creating new lockfile");
@@ -91,15 +87,13 @@ impl Lockfile {
             return Err(anyhow!("project {slug} does not exist in the lockfile"));
         }
 
-        let mut plugins = self.mods.iter();
-
-        let idx = plugins
-            .position(|p| p.name == slug)
+        let entry = self
+            .mods
+            .iter()
+            .find(|p| p.name == slug)
             .ok_or_else(|| anyhow!("{slug} does not exist in the lockfile"))?;
 
-        let entry = self.mods[idx].clone();
-
-        let mut to_remove = vec![entry.name];
+        let mut to_remove = vec![entry.name.clone()];
 
         if let Some(deps) = &entry.dependencies {
             for dep in deps {
@@ -107,7 +101,7 @@ impl Lockfile {
                     break;
                 }
 
-                let cant_be_removed = plugins.any(|p| {
+                let cant_be_removed = self.mods.iter().any(|p| {
                     let is_different = p.name != slug;
                     let requires_dep = deps.iter().any(|d| d == dep && d.required);
 
@@ -123,12 +117,16 @@ impl Lockfile {
         for slug in to_remove {
             let idx = self
                 .mods
-                .iter()
+                .iter_mut()
                 .position(|p| p.name == slug || p.id == slug)
                 .ok_or_else(|| anyhow!("{slug} does not exist in the lockfile"))?;
 
             if !keep_jarfile {
-                fs::remove_file(self.mods[idx].get_file_path(&self.loader))?;
+                let path = self.mods[idx].get_file_path(&self.loader);
+
+                info!("removing {}", path.to_string_lossy());
+
+                fs::remove_file(path)?;
             }
 
             self.mods.remove(idx);
@@ -140,9 +138,7 @@ impl Lockfile {
     }
 
     pub fn is_initialized(&self) -> bool {
-        let minecraft_version = &self.loader.minecraft_version;
-
-        let version = Versioning::new(minecraft_version).unwrap();
+        let version = Versioning::new(&self.loader.minecraft_version).unwrap();
 
         !version.is_complex() && self.loader.name != "none"
     }

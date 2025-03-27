@@ -14,10 +14,8 @@ pub fn download(url: &str, path: &Path) -> Result<()> {
 
     let mut resp = ureq::get(url).header("User-Agent", USER_AGENT).call()?;
 
-    let mut body = resp.body_mut().as_reader();
-
     let mut file = File::create(path)?;
-    io::copy(&mut body, &mut file)?;
+    io::copy(&mut resp.body_mut().as_reader(), &mut file)?;
 
     Ok(())
 }
