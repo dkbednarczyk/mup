@@ -7,11 +7,11 @@ use anyhow::Result;
 use log::info;
 
 pub fn sign() -> Result<()> {
-    info!("overwriting eula.txt");
-
     let mut file = if fs::metadata("eula.txt").is_err() {
+        info!("creating eula.txt");
         File::create("eula.txt")?
     } else {
+        info!("overwriting eula.txt");
         fs::OpenOptions::new()
             .write(true)
             .truncate(true)

@@ -21,6 +21,8 @@ struct VersionInfo {
 #[derive(Clone, Deserialize)]
 pub struct HangarDependency {
     pub name: String,
+    #[serde(rename = "projectId")]
+    pub project_id: i32,
     pub required: bool,
 }
 
@@ -40,6 +42,7 @@ struct FileInfo {
 
 #[derive(Deserialize)]
 struct ProjectInfo {
+    id: i32,
     name: String,
 }
 
@@ -91,19 +94,19 @@ pub fn fetch(lockfile: &Lockfile, project_id: &str, version: &str) -> Result<sup
     }
 
     let dependencies = if version_info.dependencies.contains_key(&loader) {
-        Some(
-            version_info.dependencies[&loader]
-                .iter()
-                .map(super::Dependency::from)
-                .collect(),
-        )
+        let deps = version_info.dependencies[&loader]
+            .iter()
+            .map(super::Dependency::from)
+            .collect();
+
+        Some(deps)
     } else {
         None
     };
 
     let info = super::Info {
-        name: project.clone(),
-        id: project,
+        name: project.to_lowercase(),
+        id: project_info.id.to_string(),
         version,
         source: String::from("hangar"),
         download_url: version_info.downloads[&loader].url.clone(),

@@ -20,6 +20,8 @@ pub struct Version {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct ModrinthDependency {
+    #[serde(skip)]
+    pub slug: String,
     pub project_id: String,
     pub dependency_type: String,
 }
@@ -89,7 +91,7 @@ pub fn fetch(lockfile: &Lockfile, id: &str, version: &str) -> Result<super::Info
         return Err(anyhow!("project version {version} does not exist"));
     }
 
-    let version_info = if version == "latest" {
+    let mut version_info = if version == "latest" {
         get_latest_version(
             &project_info.slug,
             &lockfile.loader.minecraft_version,
@@ -113,13 +115,21 @@ pub fn fetch(lockfile: &Lockfile, id: &str, version: &str) -> Result<super::Info
     let dependencies = if version_info.dependencies.is_empty() {
         None
     } else {
-        Some(
-            version_info
-                .dependencies
-                .iter()
-                .map(super::Dependency::from)
-                .collect(),
-        )
+        for dep in &mut version_info.dependencies {
+            if dep.project_id == project_info.id {
+                return Err(anyhow!("project {id} depends on itself"));
+            }
+
+            dep.slug = get_project_name(&dep.project_id)?;
+        }
+
+        let deps = version_info
+            .dependencies
+            .iter()
+            .map(super::Dependency::from)
+            .collect();
+
+        Some(deps)
     };
 
     let info = super::Info {
@@ -136,6 +146,23 @@ pub fn fetch(lockfile: &Lockfile, id: &str, version: &str) -> Result<super::Info
     };
 
     Ok(info)
+}
+
+fn get_project_name(project_id: &str) -> Result<String> {
+    info!("fetching project name for project id {project_id}");
+
+    let formatted_url = format!("{BASE_URL}/project/{project_id}");
+    let mut resp = ureq::get(formatted_url)
+        .header("User-Agent", mup::USER_AGENT)
+        .call()?;
+
+    if resp.status() == 404 {
+        return Err(anyhow!("project {project_id} does not exist"));
+    }
+
+    let resp: ProjectInfo = resp.body_mut().read_json()?;
+
+    Ok(resp.slug)
 }
 
 fn get_specific_version(

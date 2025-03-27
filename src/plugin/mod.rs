@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
 use clap::Subcommand;
-use log::info;
+use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Sha512};
 
@@ -80,16 +80,20 @@ impl Info {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Dependency {
-    pub source: String,
+    #[serde(skip)]
     pub id: String,
+    #[serde(skip)]
+    pub source: String,
+    pub name: String,
     pub required: bool,
 }
 
 impl From<&modrinth::ModrinthDependency> for Dependency {
     fn from(val: &modrinth::ModrinthDependency) -> Self {
         Self {
-            source: String::from("modrinth"),
             id: val.project_id.clone(),
+            source: String::from("modrinth"),
+            name: val.slug.clone().to_lowercase(),
             required: val.dependency_type == "required",
         }
     }
@@ -98,8 +102,9 @@ impl From<&modrinth::ModrinthDependency> for Dependency {
 impl From<&hangar::HangarDependency> for Dependency {
     fn from(val: &hangar::HangarDependency) -> Self {
         Self {
+            id: val.project_id.to_string(),
             source: String::from("hangar"),
-            id: val.name.clone(),
+            name: val.name.clone().to_lowercase(),
             required: val.required,
         }
     }
@@ -107,7 +112,11 @@ impl From<&hangar::HangarDependency> for Dependency {
 
 impl PartialEq for Dependency {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
+        if self.source == other.source {
+            self.id == other.id
+        } else {
+            self.name == other.name
+        }
     }
 }
 
@@ -166,6 +175,11 @@ pub fn add(
             }
 
             if !dep.required && !optional_deps {
+                continue;
+            }
+
+            if lockfile.get(&dep.name).is_ok() {
+                warn!("skipping duplicated dependency {}", &dep.name);
                 continue;
             }
 
