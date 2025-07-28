@@ -164,7 +164,7 @@ fn get_specific_version(lockfile: &Lockfile, slug: &str, version: &str) -> Resul
 
     let resp: Version = resp.body_mut().read_json()?;
 
-    if slug != resp.project_id {
+    if slug != get_project_name(&resp.project_id)? {
         return Err(anyhow!(
             "version id {version} is not a part of project {slug}",
         ));

@@ -153,19 +153,19 @@ pub fn add(provider: &str, project_id: &str, version: &str, no_deps: bool) -> Re
 
     let old_version = lockfile.get(project_id).ok();
 
-    if let Some(p) = old_version {
-        if p.name == project_id && p.version == version {
-            return Err(anyhow!(
-                "Project '{project_id}' version {version} is already installed"
-            ));
-        }
-    }
-
     let info = match provider {
         "modrinth" => modrinth::fetch(&lockfile, project_id, version)?,
         "hangar" => hangar::fetch(&lockfile, project_id, version)?,
         _ => unimplemented!(),
     };
+
+    if let Some(p) = old_version {
+        if p.name == project_id && p.version == info.version {
+            return Err(anyhow!(
+                "Project '{project_id}' version {version} is already installed"
+            ));
+        }
+    }
 
     if let Some(deps) = &info.dependencies {
         for dep in deps {
