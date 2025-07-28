@@ -151,12 +151,14 @@ pub fn add(provider: &str, project_id: &str, version: &str, no_deps: bool) -> Re
         ));
     }
 
-    let project = lockfile.get(project_id)?;
+    let old_version = lockfile.get(project_id).ok();
 
-    if project.name == project_id && project.version == version {
-        return Err(anyhow!(
-            "Project '{project_id}' version {version} is already installed"
-        ));
+    if let Some(p) = old_version {
+        if p.name == project_id && p.version == version {
+            return Err(anyhow!(
+                "Project '{project_id}' version {version} is already installed"
+            ));
+        }
     }
 
     let info = match provider {
@@ -164,8 +166,6 @@ pub fn add(provider: &str, project_id: &str, version: &str, no_deps: bool) -> Re
         "hangar" => hangar::fetch(&lockfile, project_id, version)?,
         _ => unimplemented!(),
     };
-
-    let remove_old_version = project.version != info.version;
 
     if let Some(deps) = &info.dependencies {
         for dep in deps {
@@ -181,13 +181,10 @@ pub fn add(provider: &str, project_id: &str, version: &str, no_deps: bool) -> Re
         }
     }
 
-    if remove_old_version {
-        info!(
-            "removing old version of {}: {}",
-            project.name, project.version
-        );
+    if old_version.is_some_and(|p| p.version != info.version) {
+        info!("removing old version of {}", info.name);
 
-        remove(&project.name, false)?;
+        remove(&info.name, false)?;
     }
 
     download_plugin(&lockfile, &info)?;
