@@ -81,53 +81,24 @@ impl Lockfile {
         Ok(())
     }
 
-    pub fn remove(&mut self, slug: &str, keep_jarfile: bool, remove_orphans: bool) -> Result<()> {
+    pub fn remove(&mut self, slug: &str, keep_jarfile: bool) -> Result<()> {
         info!("removing {slug} from lockfile");
 
         let entry = self.get(slug)?;
-        let mut to_remove = vec![slug.to_string()];
-
-        if remove_orphans && entry.dependencies.is_some() {
-            let deps = entry.dependencies.as_ref().unwrap();
-
-            for dep in deps {
-                let is_required_by_something_else = self.mods.iter().any(|p| {
-                    p.name != slug
-                        && p.id != slug
-                        && p.dependencies
-                            .as_ref()
-                            .is_some_and(|p_deps| p_deps.contains(dep))
-                });
-
-                if !is_required_by_something_else {
-                    to_remove.push(dep.id.clone());
-                }
-            }
-        }
-
-        let mods_to_remove = to_remove
-            .iter()
-            .map(|slug| {
-                self.mods
-                    .iter()
-                    .find(|p| p.name == *slug || p.id == *slug)
-                    .ok_or_else(|| anyhow!("{slug} does not exist in the lockfile"))
-            })
-            .collect::<Result<Vec<_>>>()?;
 
         if !keep_jarfile {
-            for mod_item in &mods_to_remove {
-                let path = mod_item.get_file_path(&self.loader);
-                info!("removing {}", path.to_string_lossy());
-                fs::remove_file(path)?;
-            }
+            let path = entry.get_file_path(&self.loader);
+            info!("removing {}", path.to_string_lossy());
+            fs::remove_file(path)?;
         }
 
-        self.mods.retain(|p| {
-            !to_remove
-                .iter()
-                .any(|slug| p.name == *slug || p.id == *slug)
-        });
+        let entry_idx = self
+            .mods
+            .iter()
+            .position(|p| p.id == slug || p.name == slug)
+            .ok_or_else(|| anyhow!("key {slug} not found"))?;
+
+        self.mods.remove(entry_idx);
 
         self.save()?;
 

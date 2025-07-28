@@ -40,10 +40,6 @@ pub enum Plugin {
         /// Keep the downloaded jarfile
         #[arg(long, action)]
         keep_jarfile: bool,
-
-        /// Remove orphans (dependencies which are not required by anything after removal)
-        #[arg(long, action)]
-        remove_orphans: bool,
     },
     /// Update mods or plugins
     Update {
@@ -141,11 +137,7 @@ pub fn action(plugin: &Plugin) -> Result<()> {
         } => {
             add(provider, id, version, *no_deps)?;
         }
-        Plugin::Remove {
-            id,
-            keep_jarfile,
-            remove_orphans,
-        } => remove(id, *keep_jarfile, *remove_orphans)?,
+        Plugin::Remove { id, keep_jarfile } => remove(id, *keep_jarfile)?,
         Plugin::Update {
             id,
             version,
@@ -235,7 +227,7 @@ pub fn download_plugin(lockfile: &Lockfile, info: &Info) -> Result<()> {
     )
 }
 
-fn remove(id: &str, keep_jarfile: bool, remove_orphans: bool) -> Result<()> {
+fn remove(id: &str, keep_jarfile: bool) -> Result<()> {
     let mut lockfile = Lockfile::init()?;
 
     if !lockfile.is_initialized() {
@@ -244,7 +236,7 @@ fn remove(id: &str, keep_jarfile: bool, remove_orphans: bool) -> Result<()> {
         ));
     }
 
-    lockfile.remove(id, keep_jarfile, remove_orphans)
+    lockfile.remove(id, keep_jarfile)
 }
 
 pub fn update(id: &str, version: &str, no_deps: bool) -> Result<()> {
