@@ -95,7 +95,8 @@ fn get_version_tag(minecraft: &Versioning, installer: &str) -> Result<String> {
         Versioning::General(v) => {
             let minor: u32 = v.chunks.0[1].to_string().parse()?;
 
-            let installer = Versioning::new(installer).unwrap();
+            let installer = Versioning::new(installer)
+                .ok_or_else(|| anyhow!("invalid installer version: {installer}"))?;
 
             if (9..11).contains(&minor) && &installer >= &INSTALLER_CUTOFF_TRIPLE {
                 return Ok(format!("{v}-{installer}-{v}.0"));

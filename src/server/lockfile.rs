@@ -43,7 +43,8 @@ impl Lockfile {
     pub fn with_params(minecraft_version: &str, loader_name: &str) -> Result<Self> {
         info!("initializing lockfile with Minecraft version {minecraft_version} and loader {loader_name}");
 
-        let mv = Versioning::new(minecraft_version).unwrap();
+        let mv = Versioning::new(minecraft_version)
+            .ok_or_else(|| anyhow!("invalid minecraft version: {minecraft_version}"))?;
         if mv.is_complex() {
             return Err(anyhow!(
                 "minecraft version {} is invalid",

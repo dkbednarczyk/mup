@@ -11,7 +11,10 @@ use ureq::{typestate::WithoutBody, RequestBuilder};
 pub const USER_AGENT: &str = "dkbednarczyk/mup/0.1.0 (damian@bednarczyk.xyz)";
 
 pub fn download(url: &str, path: &Path) -> Result<()> {
-    info!("downloading {} from {url}", path.to_str().unwrap());
+    info!(
+        "downloading {} from {url}",
+        path.to_str().ok_or_else(|| anyhow!("invalid path"))?
+    );
 
     let mut resp = get(url).call()?;
 
@@ -28,7 +31,7 @@ pub fn download_with_checksum<T: sha2::Digest + Write>(
 ) -> Result<()> {
     info!(
         "downloading {} from {url} with expected hash {wanted_hash}",
-        path.to_str().unwrap()
+        path.to_str().ok_or_else(|| anyhow!("invalid path"))?
     );
 
     let mut resp = get(url).call()?;
@@ -36,7 +39,7 @@ pub fn download_with_checksum<T: sha2::Digest + Write>(
     let mut body = resp.body_mut().as_reader();
 
     if let Some(prefix) = path.parent() {
-        std::fs::create_dir_all(prefix).unwrap();
+        std::fs::create_dir_all(prefix)?;
     }
 
     let mut output = File::create(path)?;
