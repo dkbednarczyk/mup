@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
 use clap::Subcommand;
-use log::{info, warn};
+use log::info;
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Sha512};
 
@@ -51,10 +51,6 @@ pub enum Plugin {
         /// For Modrinth plugins, this is the version ID.
         #[arg(short, long, default_value = "latest")]
         version: String,
-
-        /// Do not update any dependencies
-        #[arg(short, long, action)]
-        no_deps: bool,
     },
 }
 
@@ -138,11 +134,7 @@ pub fn action(plugin: &Plugin) -> Result<()> {
             add(provider, id, version, *no_deps)?;
         }
         Plugin::Remove { id, keep_jarfile } => remove(id, *keep_jarfile)?,
-        Plugin::Update {
-            id,
-            version,
-            no_deps,
-        } => update(id, version, *no_deps)?,
+        Plugin::Update { id, version } => update(id, version)?,
     }
 
     Ok(())
@@ -159,8 +151,12 @@ pub fn add(provider: &str, project_id: &str, version: &str, no_deps: bool) -> Re
         ));
     }
 
-    if lockfile.get(project_id).is_ok() {
-        return Err(anyhow!("Project '{project_id}' is already installed"));
+    let project = lockfile.get(project_id)?;
+
+    if project.name == project_id && project.version == version {
+        return Err(anyhow!(
+            "Project '{project_id}' version {version} is already installed"
+        ));
     }
 
     let info = match provider {
@@ -168,6 +164,8 @@ pub fn add(provider: &str, project_id: &str, version: &str, no_deps: bool) -> Re
         "hangar" => hangar::fetch(&lockfile, project_id, version)?,
         _ => unimplemented!(),
     };
+
+    let remove_old_version = project.version != info.version;
 
     if let Some(deps) = &info.dependencies {
         for dep in deps {
@@ -179,13 +177,17 @@ pub fn add(provider: &str, project_id: &str, version: &str, no_deps: bool) -> Re
                 continue;
             }
 
-            if lockfile.get(&dep.name).is_ok() {
-                warn!("skipping duplicated dependency {}", &dep.name);
-                continue;
-            }
-
             add(provider, &dep.id, "latest", false)?;
         }
+    }
+
+    if remove_old_version {
+        info!(
+            "removing old version of {}: {}",
+            project.name, project.version
+        );
+
+        remove(&project.name, false)?;
     }
 
     download_plugin(&lockfile, &info)?;
@@ -239,7 +241,7 @@ fn remove(id: &str, keep_jarfile: bool) -> Result<()> {
     lockfile.remove(id, keep_jarfile)
 }
 
-pub fn update(id: &str, version: &str, no_deps: bool) -> Result<()> {
+pub fn update(id: &str, version: &str) -> Result<()> {
     let lockfile = Lockfile::init()?;
 
     if !lockfile.is_initialized() {
@@ -250,10 +252,10 @@ pub fn update(id: &str, version: &str, no_deps: bool) -> Result<()> {
 
     if id == "all" {
         for plugin in lockfile.mods {
-            update(&plugin.name, version, no_deps)?;
+            update(&plugin.name, version)?;
         }
     } else {
-        add("modrinth", id, version, no_deps)?;
+        add("modrinth", id, version, true)?;
     }
 
     Ok(())
