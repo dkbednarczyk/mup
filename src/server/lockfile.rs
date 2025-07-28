@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use log::info;
+use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use versions::Versioning;
 
@@ -69,12 +69,20 @@ impl Lockfile {
     pub fn get(&self, project_id: &str) -> Result<&plugin::Info> {
         self.mods
             .iter()
-            .find(|p| p.name == project_id)
+            .find(|p| p.name == project_id || p.id == project_id)
             .ok_or_else(|| anyhow!("key {project_id} not found"))
     }
 
     pub fn add(&mut self, info: plugin::Info) -> Result<()> {
-        self.mods.push(info);
+        if let Some(idx) = self
+            .mods
+            .iter()
+            .position(|p| p.id == info.id || p.name == info.name)
+        {
+            self.mods[idx] = info;
+        } else {
+            self.mods.push(info);
+        }
 
         self.save()?;
 
@@ -89,7 +97,10 @@ impl Lockfile {
         if !keep_jarfile {
             let path = entry.get_file_path(&self.loader);
             info!("removing {}", path.to_string_lossy());
-            fs::remove_file(path)?;
+
+            if let Err(e) = fs::remove_file(path) {
+                warn!("failed to remove jarfile for {slug}: {e}");
+            }
         }
 
         let entry_idx = self
