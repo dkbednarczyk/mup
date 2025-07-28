@@ -86,19 +86,20 @@ impl Lockfile {
         let entry = self.get(slug)?;
         let mut to_remove = vec![slug.to_string()];
 
-        if remove_orphans {
-            if let Some(deps) = &entry.dependencies {
-                for dep in deps {
-                    let is_required_by_something_else = self.mods.iter().any(|p| {
-                        p.name != slug
-                            && p.dependencies
-                                .as_ref()
-                                .is_some_and(|p_deps| p_deps.contains(dep))
-                    });
+        if remove_orphans && entry.dependencies.is_some() {
+            let deps = entry.dependencies.as_ref().unwrap();
 
-                    if !is_required_by_something_else {
-                        to_remove.push(dep.id.clone());
-                    }
+            for dep in deps {
+                let is_required_by_something_else = self.mods.iter().any(|p| {
+                    p.name != slug
+                        && p.id != slug
+                        && p.dependencies
+                            .as_ref()
+                            .is_some_and(|p_deps| p_deps.contains(dep))
+                });
+
+                if !is_required_by_something_else {
+                    to_remove.push(dep.id.clone());
                 }
             }
         }
