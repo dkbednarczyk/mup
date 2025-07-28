@@ -6,13 +6,14 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use log::info;
+use ureq::{typestate::WithoutBody, RequestBuilder};
 
 pub const USER_AGENT: &str = "dkbednarczyk/mup/0.1.0 (damian@bednarczyk.xyz)";
 
 pub fn download(url: &str, path: &Path) -> Result<()> {
     info!("downloading {} from {url}", path.to_str().unwrap());
 
-    let mut resp = ureq::get(url).header("User-Agent", USER_AGENT).call()?;
+    let mut resp = get(url).call()?;
 
     let mut file = File::create(path)?;
     io::copy(&mut resp.body_mut().as_reader(), &mut file)?;
@@ -30,7 +31,7 @@ pub fn download_with_checksum<T: sha2::Digest + Write>(
         path.to_str().unwrap()
     );
 
-    let mut resp = ureq::get(url).header("User-Agent", USER_AGENT).call()?;
+    let mut resp = get(url).call()?;
 
     let mut body = resp.body_mut().as_reader();
 
@@ -70,22 +71,18 @@ pub fn download_with_checksum<T: sha2::Digest + Write>(
     Ok(())
 }
 
+pub fn get(url: &str) -> RequestBuilder<WithoutBody> {
+    ureq::get(url).header("User-Agent", USER_AGENT)
+}
+
 pub fn get_json<T: serde::de::DeserializeOwned>(url: &str) -> Result<T, ureq::Error> {
     info!("fetching json from {url}");
 
-    ureq::get(url)
-        .header("User-Agent", USER_AGENT)
-        .call()?
-        .body_mut()
-        .read_json::<T>()
+    get(url).call()?.body_mut().read_json::<T>()
 }
 
 pub fn get_string(url: &str) -> Result<String, ureq::Error> {
     info!("fetching string from {url}");
 
-    ureq::get(url)
-        .header("User-Agent", USER_AGENT)
-        .call()?
-        .body_mut()
-        .read_to_string()
+    get(url).call()?.body_mut().read_to_string()
 }

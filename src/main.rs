@@ -54,9 +54,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     if cli.verbose {
-        unsafe {
-            env::set_var("RUST_LOG", String::from("info"));
-        }
+        env::set_var("RUST_LOG", "info");
     }
 
     pretty_env_logger::init();

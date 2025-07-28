@@ -52,9 +52,7 @@ pub fn fetch(lockfile: &Lockfile, id: &str, version: &str) -> Result<super::Info
     info!("Fetching project info for {id}");
 
     let formatted_url = format!("{BASE_URL}/project/{id}");
-    let mut resp = ureq::get(formatted_url)
-        .header("User-Agent", mup::USER_AGENT)
-        .call()?;
+    let mut resp = mup::get(&formatted_url).call()?;
 
     if resp.status() == 404 {
         return Err(anyhow!("project {id} does not exist"));
@@ -116,7 +114,7 @@ pub fn fetch(lockfile: &Lockfile, id: &str, version: &str) -> Result<super::Info
 
         let deps = version_info
             .dependencies
-            .iter()
+            .into_iter()
             .map(super::Dependency::from)
             .collect();
 
@@ -143,9 +141,7 @@ fn get_project_name(project_id: &str) -> Result<String> {
     info!("fetching project name for project id {project_id}");
 
     let formatted_url = format!("{BASE_URL}/project/{project_id}");
-    let mut resp = ureq::get(formatted_url)
-        .header("User-Agent", mup::USER_AGENT)
-        .call()?;
+    let mut resp = mup::get(&formatted_url).call()?;
 
     if resp.status() == 404 {
         return Err(anyhow!("project {project_id} does not exist"));
@@ -160,9 +156,7 @@ fn get_specific_version(lockfile: &Lockfile, slug: &str, version: &str) -> Resul
     info!("fetching version {version} of {slug}");
 
     let formatted_url = format!("{BASE_URL}/version/{version}");
-    let mut resp = ureq::get(formatted_url)
-        .header("User-Agent", mup::USER_AGENT)
-        .call()?;
+    let mut resp = mup::get(&formatted_url).call()?;
 
     if resp.status() == 404 {
         return Err(anyhow!("version {version} does not exist"));
@@ -203,8 +197,7 @@ fn get_latest_version(lockfile: &Lockfile, slug: &str) -> Result<Version> {
     let version = &lockfile.loader.minecraft_version;
 
     let formatted_url = format!("{BASE_URL}/project/{slug}/version");
-    let mut resp = ureq::get(formatted_url)
-        .header("User-Agent", mup::USER_AGENT)
+    let mut resp = mup::get(&formatted_url)
         .query("game_versions", format!("[\"{version}\"]").as_str())
         .query("loaders", format!("[\"{loader}\"]").as_str())
         .call()?;
@@ -216,11 +209,11 @@ fn get_latest_version(lockfile: &Lockfile, slug: &str) -> Result<Version> {
     let versions: Vec<Version> = resp.body_mut().read_json()?;
 
     let version = versions
-        .iter()
+        .into_iter()
         .find(|p| p.game_versions.contains(version) && p.loaders.contains(loader))
         .ok_or_else(|| {
             anyhow!("{slug} for {loader} has no version that supports Minecraft {version}")
         })?;
 
-    Ok(version.clone())
+    Ok(version)
 }

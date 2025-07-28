@@ -18,7 +18,7 @@ struct VersionInfo {
     platform_dependencies: HashMap<String, Vec<String>>,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Deserialize)]
 pub struct HangarDependency {
     pub name: String,
     #[serde(rename = "projectId")]
@@ -50,9 +50,7 @@ pub fn fetch(lockfile: &Lockfile, project_id: &str, version: &str) -> Result<sup
     info!("fetching info of project {project_id}");
 
     let formatted_url = format!("{BASE_URL}/projects/{project_id}");
-    let mut resp = ureq::get(formatted_url)
-        .header("User-Agent", mup::USER_AGENT)
-        .call()?;
+    let mut resp = mup::get(&formatted_url).call()?;
 
     if resp.status() == 404 {
         return Err(anyhow!("project {project_id} does not exist"));

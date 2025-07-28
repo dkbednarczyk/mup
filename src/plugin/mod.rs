@@ -13,7 +13,7 @@ mod modrinth;
 
 #[derive(Debug, Subcommand)]
 pub enum Plugin {
-    /// Add mods or plugins, including its dependencies
+    /// Add mods or plugins and their dependencies
     Add {
         /// The project ID or slug
         #[clap(alias = "slug")]
@@ -23,20 +23,16 @@ pub enum Plugin {
         #[arg(short, long, default_value = "modrinth", value_parser = ["modrinth", "hangar"])]
         provider: String,
 
-        /// The version to target.
+        /// The version to add.
         /// For Modrinth plugins, this is the version ID.
         #[arg(short, long, default_value = "latest")]
         version: String,
-
-        /// Also install optional dependencies
-        #[arg(short, long, action)]
-        optional_deps: bool,
 
         /// Do not install any dependencies
         #[arg(short, long, action)]
         no_deps: bool,
     },
-    /// Remove mods or plugins
+    /// Remove an installed mod or plugin
     Remove {
         /// The project ID or slug
         id: String,
@@ -49,9 +45,24 @@ pub enum Plugin {
         #[arg(long, action)]
         remove_orphans: bool,
     },
+    /// Update mods or plugins
+    Update {
+        /// The project ID or slug
+        #[clap(alias = "slug", default_value = "all")]
+        id: String,
+
+        /// The version to update to.
+        /// For Modrinth plugins, this is the version ID.
+        #[arg(short, long, default_value = "latest")]
+        version: String,
+
+        /// Do not update any dependencies
+        #[arg(short, long, action)]
+        no_deps: bool,
+    },
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Info {
     pub name: String,
     pub id: String,
@@ -63,7 +74,7 @@ pub struct Info {
     pub checksum: Option<Checksum>,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Checksum {
     pub method: String,
     pub hash: String,
@@ -78,7 +89,7 @@ impl Info {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Dependency {
     #[serde(skip)]
     pub id: String,
@@ -88,12 +99,12 @@ pub struct Dependency {
     pub required: bool,
 }
 
-impl From<&modrinth::ModrinthDependency> for Dependency {
-    fn from(val: &modrinth::ModrinthDependency) -> Self {
+impl From<modrinth::ModrinthDependency> for Dependency {
+    fn from(val: modrinth::ModrinthDependency) -> Self {
         Self {
-            id: val.project_id.clone(),
-            source: String::from("modrinth"),
-            name: val.slug.clone().to_lowercase(),
+            id: val.project_id,
+            source: "modrinth".to_string(),
+            name: val.slug.to_lowercase(),
             required: val.dependency_type == "required",
         }
     }
@@ -103,8 +114,8 @@ impl From<&hangar::HangarDependency> for Dependency {
     fn from(val: &hangar::HangarDependency) -> Self {
         Self {
             id: val.project_id.to_string(),
-            source: String::from("hangar"),
-            name: val.name.clone().to_lowercase(),
+            source: "hangar".to_string(),
+            name: val.name.to_lowercase(),
             required: val.required,
         }
     }
@@ -126,40 +137,38 @@ pub fn action(plugin: &Plugin) -> Result<()> {
             id,
             provider,
             version,
-            optional_deps,
             no_deps,
         } => {
-            add(provider, id, version, *optional_deps, *no_deps)?;
+            add(provider, id, version, *no_deps)?;
         }
         Plugin::Remove {
             id,
             keep_jarfile,
             remove_orphans,
         } => remove(id, *keep_jarfile, *remove_orphans)?,
+        Plugin::Update {
+            id,
+            version,
+            no_deps,
+        } => update(id, version, *no_deps)?,
     }
 
     Ok(())
 }
 
-pub fn add(
-    provider: &str,
-    project_id: &str,
-    version: &str,
-    optional_deps: bool,
-    no_deps: bool,
-) -> Result<()> {
+pub fn add(provider: &str, project_id: &str, version: &str, no_deps: bool) -> Result<()> {
     info!("adding {project_id} version {version} from {provider}");
 
     let mut lockfile = Lockfile::init()?;
 
     if !lockfile.is_initialized() {
         return Err(anyhow!(
-            "you must initialize a server before modifying projects"
+            "Server must be initialized before removing projects"
         ));
     }
 
     if lockfile.get(project_id).is_ok() {
-        return Err(anyhow!("project {project_id} is already installed"));
+        return Err(anyhow!("Project '{project_id}' is already installed"));
     }
 
     let info = match provider {
@@ -174,7 +183,7 @@ pub fn add(
                 break;
             }
 
-            if !dep.required && !optional_deps {
+            if !dep.required {
                 continue;
             }
 
@@ -183,7 +192,7 @@ pub fn add(
                 continue;
             }
 
-            add(provider, &dep.id, "latest", false, false)?;
+            add(provider, &dep.id, "latest", false)?;
         }
     }
 
@@ -231,9 +240,29 @@ fn remove(id: &str, keep_jarfile: bool, remove_orphans: bool) -> Result<()> {
 
     if !lockfile.is_initialized() {
         return Err(anyhow!(
-            "you must initialize a server before modifying projects"
+            "Server must be initialized before updating projects"
         ));
     }
 
     lockfile.remove(id, keep_jarfile, remove_orphans)
+}
+
+pub fn update(id: &str, version: &str, no_deps: bool) -> Result<()> {
+    let lockfile = Lockfile::init()?;
+
+    if !lockfile.is_initialized() {
+        return Err(anyhow!(
+            "you must initialize a server before modifying projects"
+        ));
+    }
+
+    if id == "all" {
+        for plugin in lockfile.mods {
+            update(&plugin.name, version, no_deps)?;
+        }
+    } else {
+        add("modrinth", id, version, no_deps)?;
+    }
+
+    Ok(())
 }

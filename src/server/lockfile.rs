@@ -83,54 +83,49 @@ impl Lockfile {
     pub fn remove(&mut self, slug: &str, keep_jarfile: bool, remove_orphans: bool) -> Result<()> {
         info!("removing {slug} from lockfile");
 
-        if self.get(slug).is_err() {
-            return Err(anyhow!("project {slug} does not exist in the lockfile"));
-        }
+        let entry = self.get(slug)?;
+        let mut to_remove = vec![slug.to_string()];
 
-        let entry = self
-            .mods
-            .iter()
-            .find(|p| p.name == slug)
-            .ok_or_else(|| anyhow!("{slug} does not exist in the lockfile"))?;
+        if remove_orphans {
+            if let Some(deps) = &entry.dependencies {
+                for dep in deps {
+                    let is_required_by_something_else = self.mods.iter().any(|p| {
+                        p.name != slug
+                            && p.dependencies
+                                .as_ref()
+                                .is_some_and(|p_deps| p_deps.contains(dep))
+                    });
 
-        let mut to_remove = vec![entry.name.clone()];
-
-        if let Some(deps) = &entry.dependencies {
-            for dep in deps {
-                if !remove_orphans {
-                    break;
-                }
-
-                let cant_be_removed = self.mods.iter().any(|p| {
-                    let is_different = p.name != slug;
-                    let requires_dep = deps.iter().any(|d| d == dep && d.required);
-
-                    is_different && requires_dep
-                });
-
-                if !cant_be_removed {
-                    to_remove.push(dep.id.clone());
+                    if !is_required_by_something_else {
+                        to_remove.push(dep.id.clone());
+                    }
                 }
             }
         }
 
-        for slug in to_remove {
-            let idx = self
-                .mods
-                .iter_mut()
-                .position(|p| p.name == slug || p.id == slug)
-                .ok_or_else(|| anyhow!("{slug} does not exist in the lockfile"))?;
+        let mods_to_remove = to_remove
+            .iter()
+            .map(|slug| {
+                self.mods
+                    .iter()
+                    .find(|p| p.name == *slug || p.id == *slug)
+                    .ok_or_else(|| anyhow!("{slug} does not exist in the lockfile"))
+            })
+            .collect::<Result<Vec<_>>>()?;
 
-            if !keep_jarfile {
-                let path = self.mods[idx].get_file_path(&self.loader);
-
+        if !keep_jarfile {
+            for mod_item in &mods_to_remove {
+                let path = mod_item.get_file_path(&self.loader);
                 info!("removing {}", path.to_string_lossy());
-
                 fs::remove_file(path)?;
             }
-
-            self.mods.remove(idx);
         }
+
+        self.mods.retain(|p| {
+            !to_remove
+                .iter()
+                .any(|slug| p.name == *slug || p.id == *slug)
+        });
 
         self.save()?;
 

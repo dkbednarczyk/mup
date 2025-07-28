@@ -16,9 +16,9 @@ pub struct Loader {
 impl Default for Loader {
     fn default() -> Self {
         Self {
-            name: String::from("none"),
-            minecraft_version: String::from("latest"),
-            version: String::from("latest"),
+            name: "none".to_string(),
+            minecraft_version: "latest".to_string(),
+            version: "latest".to_string(),
         }
     }
 }
@@ -56,6 +56,6 @@ impl Loader {
             return Err(anyhow!("try one of {:?}", Self::VALID_LOADERS));
         }
 
-        Ok(input.to_string())
+        Ok(input.into())
     }
 }

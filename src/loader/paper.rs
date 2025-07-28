@@ -17,18 +17,18 @@ struct Builds {
     builds: Vec<Build>,
 }
 
-#[derive(Clone, Default, Deserialize)]
+#[derive(Deserialize)]
 struct Build {
     build: usize,
     downloads: Downloads,
 }
 
-#[derive(Clone, Default, Deserialize)]
+#[derive(Deserialize)]
 struct Downloads {
     application: Application,
 }
 
-#[derive(Clone, Default, Deserialize)]
+#[derive(Deserialize)]
 struct Application {
     sha256: String,
 }
@@ -80,18 +80,20 @@ fn get_build(minecraft_version: &str, build: &str) -> Result<Build> {
     if build == "latest" {
         let first = body
             .builds
-            .first()
+            .into_iter()
+            .next()
             .ok_or_else(|| anyhow!("could not get latest loader version"))?;
-        return Ok(first.clone());
+
+        return Ok(first);
     }
 
     let build_id: usize = build.parse()?;
 
     let latest_build = body
         .builds
-        .iter()
+        .into_iter()
         .find(|p| p.build == build_id)
         .ok_or_else(|| anyhow!("could not get specific loader version"))?;
 
-    Ok(latest_build.clone())
+    Ok(latest_build)
 }
