@@ -52,7 +52,7 @@ impl Lockfile {
             ));
         }
 
-        let loader = loader::Loader::new(loader_name, minecraft_version, "latest");
+        let loader = loader::Loader::new(loader_name, minecraft_version, "latest", false);
 
         File::create(LOCKFILE_PATH)?;
 

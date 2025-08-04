@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use log::info;
+use sha2::Digest;
 use ureq::{typestate::WithoutBody, RequestBuilder};
 
 pub const USER_AGENT: &str = "dkbednarczyk/mup/0.1.0 (damian@bednarczyk.xyz)";
@@ -24,7 +25,7 @@ pub fn download(url: &str, path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn download_with_checksum<T: sha2::Digest + Write>(
+pub fn download_with_checksum<T: Digest + Write>(
     url: &str,
     path: &Path,
     wanted_hash: &str,
@@ -44,7 +45,6 @@ pub fn download_with_checksum<T: sha2::Digest + Write>(
 
     let mut output = File::create(path)?;
 
-    // read body 1024 bytes at a time, write to file and hash writers at same time
     let digest = {
         let mut hasher = T::new();
         let mut buf = [0; 1024];

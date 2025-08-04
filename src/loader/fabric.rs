@@ -7,7 +7,7 @@ use serde::Deserialize;
 const BASE_URL: &str = "https://meta.fabricmc.net/v2/versions";
 
 #[derive(Deserialize)]
-struct Version {
+struct FabricVersion {
     version: String,
 }
 
@@ -18,7 +18,7 @@ pub fn fetch(minecraft_version: &str, loader_version: &str) -> Result<()> {
     info!("fetching latest installer");
 
     let formatted_url = format!("{BASE_URL}/installer");
-    let resp: Vec<Version> = mup::get_json(&formatted_url)?;
+    let resp: Vec<FabricVersion> = mup::get_json(&formatted_url)?;
 
     let installer = &resp
         .first()
@@ -39,7 +39,7 @@ fn get_version(path: &str, version: &str) -> Result<String> {
     info!("fetching information for {path} version {version}");
 
     let formatted_url = format!("{BASE_URL}/{path}");
-    let versions: Vec<Version> = mup::get_json(&formatted_url)?;
+    let versions: Vec<FabricVersion> = mup::get_json(&formatted_url)?;
 
     if version == "latest" {
         let latest = versions

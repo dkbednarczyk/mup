@@ -37,6 +37,10 @@ enum Commands {
         /// Loader version to target
         #[arg(short, long, default_value = "latest")]
         version: String,
+
+        /// Allow snapshot versions for vanilla
+        #[arg(short, long, action)]
+        snapshot: bool,
     },
 
     /// Work with plugins and mods
@@ -64,7 +68,8 @@ fn main() -> Result<()> {
             name,
             minecraft_version,
             version,
-        }) => loader::Loader::new(name, minecraft_version, version).fetch()?,
+            snapshot,
+        }) => loader::Loader::new(name, minecraft_version, version, *snapshot).fetch()?,
         Some(Commands::Plugin(p)) => plugin::action(p)?,
         Some(Commands::Server(s)) => server::action(s)?,
         _ => (),

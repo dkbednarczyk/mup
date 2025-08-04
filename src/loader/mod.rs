@@ -5,12 +5,14 @@ mod fabric;
 mod forge;
 mod neoforge;
 mod paper;
+mod vanilla;
 
 #[derive(Deserialize, Serialize)]
 pub struct Loader {
     pub name: String,
     pub minecraft_version: String,
     pub version: String,
+    pub snapshot: bool,
 }
 
 impl Default for Loader {
@@ -19,6 +21,7 @@ impl Default for Loader {
             name: "none".to_string(),
             minecraft_version: "latest".to_string(),
             version: "latest".to_string(),
+            snapshot: false,
         }
     }
 }
@@ -26,11 +29,12 @@ impl Default for Loader {
 impl Loader {
     const VALID_LOADERS: [&str; 4] = ["paper", "fabric", "forge", "neoforge"];
 
-    pub fn new(loader: &str, minecraft_version: &str, version: &str) -> Self {
+    pub fn new(loader: &str, minecraft_version: &str, version: &str, snapshot: bool) -> Self {
         Self {
             name: loader.to_string(),
             minecraft_version: minecraft_version.to_string(),
             version: version.to_string(),
+            snapshot,
         }
     }
 
@@ -40,6 +44,7 @@ impl Loader {
             "fabric" => fabric::fetch(&self.minecraft_version, &self.version),
             "forge" => forge::fetch(&self.minecraft_version, &self.version),
             "neoforge" => neoforge::fetch(&self.minecraft_version),
+            "vanilla" => vanilla::fetch(&self.minecraft_version, self.snapshot),
             _ => Ok(()),
         }
     }

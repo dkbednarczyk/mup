@@ -151,6 +151,10 @@ pub fn add(provider: &str, project_id: &str, version: &str, no_deps: bool) -> Re
         ));
     }
 
+    if lockfile.loader.name == "vanilla" {
+        return Err(anyhow!("vanilla servers do not support plugins"));
+    }
+
     let old_version = lockfile.get(project_id).ok();
 
     let info = match provider {

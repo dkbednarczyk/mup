@@ -1,19 +1,30 @@
 # mup
 
-This is a spiritual successor to the original, now abandoned(?) [pap](https://github.com/talwat/pap), rewritten in Rust.
+Set up reproducible Minecraft servers from the command line.
 
-## Goals
+Why another tool? `mup` saves everything it does to a lockfile. This is helpful for sharing your server setup with others or deploying it to a different machine.
+It's perfect for people like me that don't want to bother with containerization or a manager like Pterodactyl, and just a simple tool to manage their server.
 
-- [x] Easily set up a new Minecraft server from scratch, including mod and plugin support
-- [x] Produce easily reproducible, portable server configuration
-  - [x] Lockfile with detailed information on installed mods
-  - [x] Support for installing lockfile dependencies
-  - [ ] Support for updating lockfile dependencies
+## Features
+Supports the following Minecraft server types:
+- Vanilla
+- Fabric
+- Forge/Neoforge
+- Paper
 
-✅ Be an all-in-one tool that keeps it simple, stupid!
+And the following mod repositories:
+- Modrinth
+- Hangar
+- CurseForge (planned)
 
-## Non-Goals
+## Examples
+```bash
+# Initialize a new Paper server in the current directory
+mup server init --minecraft-version 1.21.4 --loader paper
 
-❌ Support client-side modification
+# Install a specific version of a mod from Modrinth (default)
+mup plugin add --version IPM0JlHd ferrite-core
 
-❌ Support self updating, unzipping, or anything that another program can do better
+# Update it to the latest version
+mup plugin update ferrite-core
+```
