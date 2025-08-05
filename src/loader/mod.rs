@@ -27,7 +27,7 @@ impl Default for Loader {
 }
 
 impl Loader {
-    const VALID_LOADERS: [&str; 4] = ["paper", "fabric", "forge", "neoforge"];
+    const VALID_LOADERS: [&str; 5] = ["paper", "fabric", "forge", "neoforge", "vanilla"];
 
     pub fn new(loader: &str, minecraft_version: &str, version: &str, snapshot: bool) -> Self {
         Self {
