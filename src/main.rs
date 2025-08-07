@@ -69,7 +69,7 @@ fn main() -> Result<()> {
             minecraft_version,
             version,
             snapshot,
-        }) => loader::Loader::new(name, minecraft_version, version, *snapshot).fetch()?,
+        }) => loader::action(name, minecraft_version, version, *snapshot)?,
         Some(Commands::Plugin(p)) => plugin::action(p)?,
         Some(Commands::Server(s)) => server::action(s)?,
         _ => (),
