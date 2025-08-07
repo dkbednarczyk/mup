@@ -1,6 +1,15 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 
+pub fn action(
+    name: &str,
+    minecraft_version: &str,
+    version: &str,
+    snapshot: bool,
+) -> Result<()> {
+    Loader::new(name, minecraft_version, version, snapshot).fetch()
+}
+
 mod fabric;
 mod forge;
 mod neoforge;
